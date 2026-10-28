@@ -17,6 +17,9 @@
     <!-- Chart.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
+    <!-- SheetJS (xlsx) untuk Ekspor ke Excel -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
     <style>
         :root {
             --bg-body: #0b0f19;
@@ -253,6 +256,45 @@
             padding: 6px 12px;
             border-radius: 8px;
             border: 1px solid var(--border-card);
+        }
+
+        .btn-export-excel {
+            background: rgba(16, 185, 129, 0.15);
+            color: #34d399;
+            border: 1px solid rgba(16, 185, 129, 0.35);
+            padding: 6px 14px;
+            border-radius: 8px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+        }
+
+        .btn-export-excel:hover {
+            background: #10b981;
+            color: #ffffff;
+            border-color: #10b981;
+            box-shadow: 0 0 14px rgba(16, 185, 129, 0.45);
+            transform: translateY(-1px);
+        }
+
+        .btn-excel {
+            background: rgba(16, 185, 129, 0.15);
+            border: 1px solid rgba(16, 185, 129, 0.35);
+            color: #34d399;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-excel:hover {
+            background: #10b981;
+            color: #ffffff;
+            border-color: #10b981;
+            box-shadow: 0 0 12px rgba(16, 185, 129, 0.4);
         }
 
         /* Alert Warning Banner */
@@ -800,7 +842,7 @@
                 </div>
             </div>
 
-            <!-- Status Firebase & Jam Dunia Realtime -->
+            <!-- Status Firebase, Jam Dunia Realtime & Ekspor Excel -->
             <div class="header-actions">
                 <div class="status-badge" id="firebaseStatusBadge">
                     <div class="pulse-dot"></div>
@@ -809,6 +851,9 @@
                 <div class="live-clock" id="liveClock">
                     <i class="fa-regular fa-clock" style="color: #38bdf8; margin-right: 6px;"></i>--:--:-- WIB
                 </div>
+                <button class="btn-export-excel" onclick="eksporKeExcel()" title="Ekspor seluruh data pemantauan ke Excel (.xlsx)">
+                    <i class="fa-solid fa-file-excel"></i> Ekspor Excel
+                </button>
             </div>
         </div>
 
@@ -962,10 +1007,12 @@
                         <i class="fa-solid fa-chart-area text-primary"></i> Grafik Pemantauan Suhu Realtime
                     </div>
                     <div class="chart-controls">
-                        <span style="font-size: 0.78rem; color: var(--text-dim); margin-right: 8px; display: flex; align-items: center;">
-                            <i class="fa-solid fa-circle" style="color: #38bdf8; font-size: 0.5rem; margin-right: 5px;"></i> Sensor DHT
-                        </span>
-                        <button class="btn-xs active" onclick="resetChartData()">Reset Grafik</button>
+                        <button class="btn-xs btn-excel" onclick="eksporKeExcel()" title="Ekspor data rekaman suhu ke file Excel (.xlsx)">
+                            <i class="fa-solid fa-file-excel"></i> Ekspor Excel
+                        </button>
+                        <button class="btn-xs active" onclick="resetChartData()" title="Reset tampilan grafik">
+                            <i class="fa-solid fa-rotate-right"></i> Reset Grafik
+                        </button>
                     </div>
                 </div>
                 <div class="chart-canvas-container">
@@ -1108,6 +1155,71 @@
         let sumSuhu = 0;
         let panasIncidentCount = 0;
         let worldTimeOffsetMs = 0;
+
+        // ================= RIWAYAT DATA UNTUK EKSPOR EXCEL =================
+        const riwayatDataSuhu = [];
+        try {
+            const savedCache = localStorage.getItem('riwayat_suhu_iot');
+            if (savedCache) {
+                const parsed = JSON.parse(savedCache);
+                if (Array.isArray(parsed)) {
+                    riwayatDataSuhu.push(...parsed.slice(-300));
+                }
+            }
+        } catch (e) {
+            console.warn("Cache riwayat lokal belum ada.");
+        }
+
+        function rekamDataSuhu(data) {
+            if (!data || data.suhu === undefined) return;
+            const now = new Date(Date.now() + worldTimeOffsetMs);
+            const tanggalStr = now.toLocaleDateString('id-ID', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                timeZone: 'Asia/Jakarta'
+            });
+            const waktuStr = now.toLocaleTimeString('id-ID', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false,
+                timeZone: 'Asia/Jakarta'
+            }).replace(/\./g, ':');
+
+            const suhuNum = parseFloat(data.suhu) || 0;
+            let statusKondisi = "Normal (Aman)";
+            if (suhuNum >= 60 || data.bahaya === 2) {
+                statusKondisi = "Bahaya Kritis (>60°C)";
+            } else if (suhuNum >= 50 || data.bahaya === 1) {
+                statusKondisi = "Bahaya Kebakaran (>50°C)";
+            } else if (suhuNum >= 35) {
+                statusKondisi = "Waspada Panas (35-50°C)";
+            }
+
+            const item = {
+                no: riwayatDataSuhu.length + 1,
+                tanggal: tanggalStr,
+                waktu: waktuStr,
+                suhu: suhuNum,
+                kondisi: statusKondisi,
+                ledHijau: data.hijau ? "MENYALA" : "MATI",
+                ledMerah: data.merah ? "MENYALA" : "MATI",
+                buzzer: isMutedCurrent ? "SENYAP (MUTED)" : ((suhuNum >= 50 || data.bahaya > 0) ? "ALARM AKTIF" : "SIAGA AKTIF")
+            };
+
+            riwayatDataSuhu.push(item);
+            if (riwayatDataSuhu.length > 2000) {
+                riwayatDataSuhu.shift();
+            }
+
+            // Simpan ke localStorage berkala setiap 5 pembacaan
+            if (riwayatDataSuhu.length % 5 === 0) {
+                try {
+                    localStorage.setItem('riwayat_suhu_iot', JSON.stringify(riwayatDataSuhu.slice(-300)));
+                } catch (e) {}
+            }
+        }
 
         // Data Chart
         const maxChartDataPoints = 25;
@@ -1283,6 +1395,9 @@
         // ================= PROSES UPDATE DATA SENSOR =================
         function prosesDataSensor(data) {
             if (!data) return;
+
+            // Catat ke riwayat untuk ekspor Excel
+            rekamDataSuhu(data);
 
             const suhu = parseFloat(data.suhu) || 0;
             const suhuFormatted = suhu.toFixed(1);
@@ -1564,6 +1679,114 @@
                     updateBuzzerUI(kontrolData.is_muted);
                 }
             });
+        }
+
+        // ================= FUNGSI EKSPOR DATA KE EXCEL =================
+        function eksporKeExcel() {
+            // Jika belum ada data dari streaming, masukkan data yang sedang tampil di layar
+            if (riwayatDataSuhu.length === 0) {
+                const elemSuhu = document.getElementById('nilaiSuhu');
+                const suhuSekarang = parseFloat(elemSuhu ? elemSuhu.textContent : 0);
+                if (!isNaN(suhuSekarang) && suhuSekarang > 0) {
+                    rekamDataSuhu({
+                        suhu: suhuSekarang,
+                        hijau: document.getElementById('indHijau').classList.contains('led-green-on'),
+                        merah: document.getElementById('indMerah').classList.contains('led-red-on'),
+                        bahaya: currentBahaya
+                    });
+                }
+            }
+
+            if (riwayatDataSuhu.length === 0) {
+                alert("Belum ada data suhu yang terekam. Pastikan sensor ESP32 terhubung dan mengirim data ke Firebase!");
+                return;
+            }
+
+            const now = new Date(Date.now() + worldTimeOffsetMs);
+            const yyyy = now.getFullYear();
+            const mm = String(now.getMonth() + 1).padStart(2, '0');
+            const dd = String(now.getDate()).padStart(2, '0');
+            const hh = String(now.getHours()).padStart(2, '0');
+            const ii = String(now.getMinutes()).padStart(2, '0');
+            const ss = String(now.getSeconds()).padStart(2, '0');
+            const fileTimestamp = `${yyyy}${mm}${dd}_${hh}${ii}${ss}`;
+            const namaFile = `Laporan_Monitoring_Suhu_${fileTimestamp}.xlsx`;
+
+            // Data Sheet 1: Riwayat Rekaman Suhu
+            const excelDataSuhu = riwayatDataSuhu.map((item, index) => ({
+                "No": index + 1,
+                "Tanggal": item.tanggal,
+                "Waktu (WIB)": item.waktu,
+                "Suhu (°C)": item.suhu,
+                "Status Kondisi": item.kondisi,
+                "LED Hijau": item.ledHijau,
+                "LED Merah": item.ledMerah,
+                "Status Buzzer": item.buzzer
+            }));
+
+            // Data Sheet 2: Log Kejadian & Aktivitas
+            const logItems = document.querySelectorAll('#logList .log-item');
+            const excelDataLog = [];
+            logItems.forEach((el, idx) => {
+                const pesan = el.querySelector('.log-text')?.textContent?.trim() || '';
+                const waktu = el.querySelector('.log-time')?.textContent?.trim() || '';
+                if (pesan) {
+                    excelDataLog.push({
+                        "No": idx + 1,
+                        "Waktu": waktu,
+                        "Pesan / Catatan Aktivitas": pesan
+                    });
+                }
+            });
+
+            if (typeof XLSX !== 'undefined') {
+                const wb = XLSX.utils.book_new();
+
+                // Sheet 1: Riwayat Suhu
+                const wsSuhu = XLSX.utils.json_to_sheet(excelDataSuhu);
+                wsSuhu['!cols'] = [
+                    { wch: 6 },  // No
+                    { wch: 14 }, // Tanggal
+                    { wch: 14 }, // Waktu
+                    { wch: 12 }, // Suhu
+                    { wch: 26 }, // Status Kondisi
+                    { wch: 14 }, // LED Hijau
+                    { wch: 14 }, // LED Merah
+                    { wch: 18 }  // Status Buzzer
+                ];
+                XLSX.utils.book_append_sheet(wb, wsSuhu, "Riwayat Suhu");
+
+                // Sheet 2: Log Aktivitas
+                if (excelDataLog.length > 0) {
+                    const wsLog = XLSX.utils.json_to_sheet(excelDataLog);
+                    wsLog['!cols'] = [
+                        { wch: 6 },  // No
+                        { wch: 14 }, // Waktu
+                        { wch: 60 }  // Pesan
+                    ];
+                    XLSX.utils.book_append_sheet(wb, wsLog, "Log Aktivitas");
+                }
+
+                // Download File Excel
+                XLSX.writeFile(wb, namaFile);
+                addLog(`Berhasil mengekspor ${excelDataSuhu.length} data ke Excel (${namaFile})`, 'normal');
+            } else {
+                // Fallback CSV (UTF-8 BOM untuk Microsoft Excel)
+                let csv = "\uFEFFNo,Tanggal,Waktu (WIB),Suhu (°C),Status Kondisi,LED Hijau,LED Merah,Status Buzzer\r\n";
+                excelDataSuhu.forEach(row => {
+                    csv += `"${row.No}","${row.Tanggal}","${row["Waktu (WIB)"]}","${row["Suhu (°C)"]}","${row["Status Kondisi"]}","${row["LED Hijau"]}","${row["LED Merah"]}","${row["Status Buzzer"]}"\r\n`;
+                });
+                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `Laporan_Monitoring_Suhu_${fileTimestamp}.csv`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                addLog(`Data berhasil diekspor ke CSV (${excelDataSuhu.length} baris)`, 'normal');
+            }
         }
     </script>
 </body>
