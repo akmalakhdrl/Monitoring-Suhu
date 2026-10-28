@@ -7,7 +7,8 @@
 const char* ssid = "DEKSTOP 7";           
 const char* password = "kamarakmal2";     
 
-#define FIREBASE_HOST "https://monitoring-suhu-real-tim-90141-default-rtdb.asia-southeast1.firebasedatabase.app"
+// PENTING: Untuk ESP32, FIREBASE_HOST jangan pakai "https://" dan jangan ada "/" di akhir
+#define FIREBASE_HOST "monitoring-suhu-real-tim-90141-default-rtdb.asia-southeast1.firebasedatabase.app"
 #define FIREBASE_AUTH "AIzaSyAsbqDriEzTmFRsvxOlZMreOJZdchnOGdw"
 
 // ================= DEFINISI PIN HARDWARE =================
@@ -45,7 +46,9 @@ int statusBahaya = 0;
 void setup() {
   Serial.begin(115200);
   delay(1000);
-  Serial.println("\n--- Sistem Monitoring Suhu & Kebakaran ESP32 Dimulai ---");
+  Serial.println("\n==================================================");
+  Serial.println("  SISTEM MONITORING SUHU & ALARM KEBAKARAN ESP32  ");
+  Serial.println("==================================================");
   
   pinMode(LED_HIJAU, OUTPUT);
   pinMode(LED_MERAH, OUTPUT);
@@ -80,23 +83,20 @@ void setup() {
     Serial.println("\n[PERINGATAN] Gagal terhubung ke WiFi, periksa SSID & Password!");
   }
 
-  // Konfigurasi Firebase
-  config.api_key = FIREBASE_AUTH;
+  // ================= KONFIGURASI FIREBASE =================
   config.database_url = FIREBASE_HOST;
+  config.api_key = FIREBASE_AUTH;
 
-  // Mode Test / Anonymous Sign-in
+  // Gunakan Mode Test (Bypass otentikasi login anonim yang sering menyebabkan 'Bad request')
   config.signer.test_mode = true;
-  Firebase.signUp(&config, &auth, "", "");
+
+  // Alokasi buffer SSL BearSSL agar transmisi data stabil
+  fbdo.setBSSLBufferSize(4096, 1024);
 
   Firebase.begin(&config, &auth);
   Firebase.reconnectNetwork(true);
 
-  // Inisialisasi awal nilai kontrol jika belum ada
-  if (!Firebase.getBool(fbdo, "/kontrol/is_muted")) {
-    Firebase.setBool(fbdo, "/kontrol/is_muted", false);
-  }
-  
-  Serial.println("[OK] Firebase Initialized. Siap mengirim data ke Web Dashboard!");
+  Serial.println("[OK] Firebase Initialized (Mode Test). Siap streaming data!");
 }
 
 // ================= LOOP UTAMA =================
@@ -122,7 +122,7 @@ void loop() {
     if (tempC != DEVICE_DISCONNECTED_C && tempC > -55.0 && tempC < 125.0) {
       suhuRuangan = tempC;
     } else {
-      Serial.println("[PERINGATAN] Sensor DS18B20 tidak terbaca / terlepas!");
+      Serial.println("[SENSOR] DS18B20 tidak terbaca, periksa kabel/resistor pull-up 4.7k!");
     }
     sensors.requestTemperatures(); 
     
@@ -130,27 +130,31 @@ void loop() {
     if (suhuRuangan < 50.0 && isMuted == true) {
       isMuted = false;
       Firebase.setBool(fbdo, "/kontrol/is_muted", false);
-      Serial.println("Suhu sudah aman (< 50 C). Alarm buzzer disiagakan kembali.");
+      Serial.println("[INFO] Suhu aman (< 50 C). Alarm buzzer disiagakan kembali.");
     }
 
-    // Kirim Data Lengkap ke Firebase Realtime Database
-    FirebaseJson json;
-    json.set("suhu", suhuRuangan);
-    json.set("bahaya", statusBahaya);
-    json.set("hijau", stateHijau);
-    json.set("merah", stateMerah);
-    
-    if (Firebase.setJSON(fbdo, "/sensor", json)) {
-      Serial.printf("[TERKIRIM KE WEB] Suhu: %.1f C | Bahaya: %d | LED Hijau: %d | LED Merah: %d\n", 
-                    suhuRuangan, statusBahaya, stateHijau, stateMerah);
+    // Kirim Data ke Firebase
+    if (Firebase.ready()) {
+      FirebaseJson json;
+      json.set("suhu", suhuRuangan);
+      json.set("bahaya", statusBahaya);
+      json.set("hijau", stateHijau ? true : false);
+      json.set("merah", stateMerah ? true : false);
+      
+      if (Firebase.setJSON(fbdo, "/sensor", json)) {
+        Serial.printf("[SUKSES] Suhu: %.1f C | Bahaya: %d | LED Hijau: %d | LED Merah: %d\n", 
+                      suhuRuangan, statusBahaya, stateHijau, stateMerah);
+      } else {
+        Serial.print("[ERROR FIREBASE] ");
+        Serial.println(fbdo.errorReason());
+      }
+      
+      // Baca Status Mute dari Web
+      if (Firebase.getBool(fbdo, "/kontrol/is_muted")) {
+        isMuted = fbdo.boolData();
+      }
     } else {
-      Serial.print("[ERROR FIREBASE] ");
-      Serial.println(fbdo.errorReason());
-    }
-    
-    // Baca Status Mute dari Web
-    if (Firebase.getBool(fbdo, "/kontrol/is_muted")) {
-      isMuted = fbdo.boolData();
+      Serial.println("[FIREBASE] Menghubungkan sesi...");
     }
   }
 
@@ -161,19 +165,19 @@ void loop() {
   statusBahaya = 0; 
 
   if (suhuRuangan >= 60.0) {
-    // Bahaya Kebakaran Kritis
+    // Bahaya Kebakaran Kritis (>= 60 C)
     stateMerah = HIGH;
     targetBuzzer = statusFlipFlopCepat;
     statusBahaya = 2; 
   }
   else if (suhuRuangan >= 50.0) {
-    // Waspada Bahaya
+    // Waspada Bahaya (50 - 59 C)
     stateMerah = HIGH;
     targetBuzzer = statusFlipFlop;
     statusBahaya = 1; 
   }
   else if (suhuRuangan >= 35.0) {
-    // Hangat / Peringatan
+    // Hangat / Peringatan (35 - 49 C)
     stateMerah = statusFlipFlop;
     statusBahaya = 0; 
   } 
@@ -195,4 +199,3 @@ void loop() {
   digitalWrite(LED_MERAH, stateMerah);
   digitalWrite(BUZZER, stateBuzzer);
 }
-
