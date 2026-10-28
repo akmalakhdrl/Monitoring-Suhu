@@ -1,0 +1,14 @@
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# Editor configs
+.vscode/
+.idea/
+*.swp
+*.bak
+
+# Temporary and build files
+*.tmp
+Untitled-1.html
+

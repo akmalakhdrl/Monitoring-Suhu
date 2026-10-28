@@ -1,0 +1,1605 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Monitoring Suhu & Alarm Kebakaran IoT</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        :root {
+            --bg-body: #0b0f19;
+            --bg-card: rgba(18, 24, 38, 0.85);
+            --bg-card-hover: rgba(26, 35, 54, 0.9);
+            --border-card: rgba(255, 255, 255, 0.08);
+            --primary: #38bdf8;
+            --primary-glow: rgba(56, 189, 248, 0.25);
+            --success: #10b981;
+            --success-glow: rgba(16, 185, 129, 0.3);
+            --warning: #f59e0b;
+            --warning-glow: rgba(245, 158, 11, 0.3);
+            --danger: #ef4444;
+            --danger-glow: rgba(239, 68, 68, 0.4);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --text-dim: #64748b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--bg-body);
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(56, 189, 248, 0.08) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(239, 68, 68, 0.08) 0px, transparent 50%),
+                radial-gradient(at 50% 50%, rgba(15, 23, 42, 0.6) 0px, transparent 100%);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* Container Animasi Api (Disesuaikan agar rapi dan tidak menutupi tombol) */
+        #fireContainer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 999;
+            overflow: hidden;
+            opacity: 0.85;
+        }
+
+        .fire-emoji {
+            position: absolute;
+            bottom: -60px;
+            animation: melayangNaik linear forwards;
+            user-select: none;
+            filter: drop-shadow(0 0 10px rgba(239, 68, 68, 0.8));
+        }
+
+        @keyframes melayangNaik {
+            0% {
+                transform: translateY(0) scale(0.6) rotate(0deg);
+                opacity: 0.9;
+            }
+            50% {
+                opacity: 0.8;
+            }
+            100% {
+                transform: translateY(-90vh) scale(1.8) rotate(30deg);
+                opacity: 0;
+            }
+        }
+
+        /* Top Navigation Header */
+        header.app-header {
+            background: rgba(11, 15, 25, 0.85);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border-card);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            padding: 12px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .brand-section {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .brand-logo {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #ef4444 0%, #f97316 50%, #38bdf8 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            color: #fff;
+            box-shadow: 0 0 20px rgba(239, 68, 68, 0.35);
+        }
+
+        .brand-title h1 {
+            font-size: 1.15rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .brand-title p {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        /* Menu Navigasi */
+        nav.nav-menu {
+            display: flex;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border-card);
+            border-radius: 12px;
+            padding: 4px;
+            gap: 4px;
+        }
+
+        .nav-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .nav-btn:hover {
+            color: var(--text-main);
+            background: rgba(255, 255, 255, 0.06);
+        }
+
+        .nav-btn.active {
+            background: #1e293b;
+            color: var(--primary);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+        }
+
+        /* Header Status Tools */
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            flex-wrap: wrap;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: #34d399;
+            padding: 6px 14px;
+            border-radius: 30px;
+            font-size: 0.78rem;
+            font-weight: 600;
+        }
+
+        .status-badge.offline {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: rgba(239, 68, 68, 0.3);
+            color: #f87171;
+        }
+
+        .pulse-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: currentColor;
+            box-shadow: 0 0 10px currentColor;
+            animation: pulseAnim 1.8s infinite;
+        }
+
+        @keyframes pulseAnim {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(0.85); }
+        }
+
+        .live-clock {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.82rem;
+            color: var(--text-muted);
+            background: rgba(255, 255, 255, 0.03);
+            padding: 6px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border-card);
+        }
+
+        .sim-btn {
+            background: rgba(56, 189, 248, 0.12);
+            color: var(--primary);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .sim-btn:hover {
+            background: var(--primary);
+            color: #0b0f19;
+        }
+
+        /* Alert Warning Banner */
+        .emergency-banner {
+            display: none;
+            background: linear-gradient(90deg, #b91c1c, #dc2626, #b91c1c);
+            color: #fff;
+            padding: 12px 24px;
+            text-align: center;
+            font-weight: 700;
+            font-size: 0.95rem;
+            letter-spacing: 0.03em;
+            animation: alertFlash 1s infinite alternate;
+            box-shadow: 0 4px 20px rgba(220, 38, 38, 0.6);
+            z-index: 90;
+            position: relative;
+        }
+
+        @keyframes alertFlash {
+            from { background-color: #991b1b; }
+            to { background-color: #ef4444; }
+        }
+
+        /* Layout Konten Utama */
+        main.main-content {
+            flex: 1;
+            padding: 24px;
+            max-width: 1400px;
+            width: 100%;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        /* Grid Kartu Metrik Utama */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-card);
+            border-radius: 18px;
+            padding: 22px;
+            backdrop-filter: blur(8px);
+            transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card:hover {
+            transform: translateY(-3px);
+            border-color: rgba(255, 255, 255, 0.15);
+            box-shadow: 0 12px 28px rgba(0, 0, 0, 0.4);
+        }
+
+        .card-header-sm {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .card-title-sm {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .card-icon-badge {
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+        }
+
+        /* Kartu 1: Suhu Realtime */
+        .temp-display-wrap {
+            display: flex;
+            align-items: baseline;
+            gap: 12px;
+            margin: 10px 0 18px 0;
+        }
+
+        .temp-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 3.8rem;
+            font-weight: 800;
+            line-height: 1;
+            color: #38bdf8;
+            letter-spacing: -0.04em;
+            text-shadow: 0 0 25px rgba(56, 189, 248, 0.4);
+            transition: color 0.3s, text-shadow 0.3s;
+        }
+
+        .temp-unit {
+            font-size: 1.6rem;
+            font-weight: 600;
+            color: var(--text-muted);
+        }
+
+        .temp-range-bar {
+            width: 100%;
+            height: 8px;
+            background: #1e293b;
+            border-radius: 6px;
+            overflow: hidden;
+            margin-bottom: 12px;
+            position: relative;
+        }
+
+        .temp-progress {
+            height: 100%;
+            width: 30%;
+            background: linear-gradient(90deg, #10b981 0%, #f59e0b 60%, #ef4444 100%);
+            border-radius: 6px;
+            transition: width 0.5s ease;
+        }
+
+        .temp-subtext {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        /* Kartu 2: Status Bahaya */
+        .status-visual {
+            text-align: center;
+            padding: 12px 0;
+        }
+
+        .condition-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 22px;
+            border-radius: 50px;
+            font-size: 1.15rem;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            background: rgba(16, 185, 129, 0.15);
+            color: #34d399;
+            border: 1px solid rgba(16, 185, 129, 0.4);
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.2);
+            transition: all 0.3s;
+        }
+
+        .condition-badge.warning {
+            background: rgba(245, 158, 11, 0.15);
+            color: #fbbf24;
+            border-color: rgba(245, 158, 11, 0.4);
+            box-shadow: 0 0 20px rgba(245, 158, 11, 0.2);
+        }
+
+        .condition-badge.danger {
+            background: rgba(239, 68, 68, 0.2);
+            color: #f87171;
+            border-color: rgba(239, 68, 68, 0.5);
+            box-shadow: 0 0 25px rgba(239, 68, 68, 0.4);
+            animation: pulseDanger 1.2s infinite alternate;
+        }
+
+        @keyframes pulseDanger {
+            from { transform: scale(1); }
+            to { transform: scale(1.05); }
+        }
+
+        .level-meter {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 18px;
+        }
+
+        .meter-dot {
+            flex: 1;
+            height: 6px;
+            background: #1e293b;
+            border-radius: 4px;
+            transition: background 0.3s;
+        }
+
+        .meter-dot.active-green { background: #10b981; box-shadow: 0 0 8px #10b981; }
+        .meter-dot.active-yellow { background: #f59e0b; box-shadow: 0 0 8px #f59e0b; }
+        .meter-dot.active-red { background: #ef4444; box-shadow: 0 0 8px #ef4444; }
+
+        /* Kartu 3: Indikator LED Hardware */
+        .led-panel {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            padding: 14px 0 6px 0;
+        }
+
+        .led-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .led-bulb {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: #1e293b;
+            border: 3px solid #334155;
+            transition: all 0.3s ease;
+            position: relative;
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.6);
+        }
+
+        .led-bulb::after {
+            content: '';
+            position: absolute;
+            top: 6px;
+            left: 10px;
+            width: 12px;
+            height: 6px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.4);
+        }
+
+        /* LED Menyala */
+        .led-green-on {
+            background: #10b981 !important;
+            border-color: #6ee7b7 !important;
+            box-shadow: 0 0 25px #10b981, inset 0 0 10px #a7f3d0 !important;
+        }
+
+        .led-red-on {
+            background: #ef4444 !important;
+            border-color: #fca5a5 !important;
+            box-shadow: 0 0 28px #ef4444, inset 0 0 10px #fecaca !important;
+        }
+
+        .led-label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-muted);
+        }
+
+        /* Kartu 4: Kontrol Buzzer */
+        .buzzer-box {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .buzzer-status-pill {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 14px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 12px;
+            border: 1px solid var(--border-card);
+        }
+
+        .buzzer-icon-state {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .btn-action {
+            width: 100%;
+            padding: 14px 20px;
+            border-radius: 12px;
+            font-size: 0.95rem;
+            font-weight: 700;
+            border: none;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn-mute-active {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: #fff;
+            box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4);
+        }
+
+        .btn-mute-active:hover {
+            background: linear-gradient(135deg, #f87171 0%, #ef4444 100%);
+            transform: translateY(-2px);
+        }
+
+        .btn-unmute-mode {
+            background: linear-gradient(135deg, #475569 0%, #334155 100%);
+            color: #f1f5f9;
+            border: 1px solid #64748b;
+        }
+
+        .btn-unmute-mode:hover {
+            background: linear-gradient(135deg, #64748b 0%, #475569 100%);
+            transform: translateY(-2px);
+        }
+
+        .btn-action:active {
+            transform: scale(0.97);
+        }
+
+        /* Section Grafik & Log */
+        .charts-section {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 1024px) {
+            .charts-section {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .chart-controls {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-xs {
+            padding: 5px 10px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-card);
+            border-radius: 6px;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-xs:hover, .btn-xs.active {
+            background: var(--primary);
+            color: #0b0f19;
+            border-color: var(--primary);
+        }
+
+        .chart-canvas-container {
+            position: relative;
+            height: 280px;
+            width: 100%;
+        }
+
+        /* Log Aktivitas Table */
+        .log-box {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .log-list {
+            flex: 1;
+            overflow-y: auto;
+            max-height: 280px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding-right: 4px;
+        }
+
+        .log-list::-webkit-scrollbar {
+            width: 5px;
+        }
+
+        .log-list::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 10px;
+        }
+
+        .log-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 9px 12px;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 8px;
+            border-left: 3px solid var(--primary);
+            font-size: 0.82rem;
+            transition: background 0.2s;
+        }
+
+        .log-item.danger {
+            border-left-color: var(--danger);
+            background: rgba(239, 68, 68, 0.08);
+        }
+
+        .log-item.warning {
+            border-left-color: var(--warning);
+            background: rgba(245, 158, 11, 0.08);
+        }
+
+        .log-time {
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--text-dim);
+            font-size: 0.75rem;
+        }
+
+        .log-text {
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        /* Tab Content Switching */
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Info Section (Tab Pengaturan/Info) */
+        .device-info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            font-size: 0.88rem;
+        }
+
+        .info-row span:first-child {
+            color: var(--text-muted);
+        }
+
+        .info-row span:last-child {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        /* Footer */
+        footer.app-footer {
+            margin-top: auto;
+            border-top: 1px solid var(--border-card);
+            padding: 16px 24px;
+            text-align: center;
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            background: rgba(11, 15, 25, 0.6);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        @media (max-width: 768px) {
+            header.app-header {
+                padding: 12px 16px;
+            }
+            main.main-content {
+                padding: 16px;
+            }
+            .temp-value {
+                font-size: 3rem;
+            }
+            nav.nav-menu {
+                width: 100%;
+                justify-content: space-around;
+            }
+            .nav-btn {
+                padding: 8px 10px;
+                font-size: 0.78rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Efek Api Melayang (Aktif saat Bahaya) -->
+    <div id="fireContainer"></div>
+
+    <!-- Alert Banner Darurat -->
+    <div class="emergency-banner" id="emergencyBanner">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <span>PERINGATAN: TEMPERATUR TINGGI TERDETEKSI! SISTEM ALARM AKTIF!</span>
+        <button onclick="muteBuzzer()" style="margin-left: 15px; padding: 4px 12px; background: #fff; color: #b91c1c; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">
+            SENYAPKAN SEKARANG
+        </button>
+    </div>
+
+    <!-- Header / Navbar Utama -->
+    <header class="app-header">
+        <div class="brand-section">
+            <div class="brand-logo">
+                <i class="fa-solid fa-fire-flame-curved"></i>
+            </div>
+            <div class="brand-title">
+                <h1>THERMO-GUARD <span style="font-size: 0.65rem; background: rgba(56, 189, 248, 0.15); color: #38bdf8; padding: 2px 8px; border-radius: 10px; border: 1px solid rgba(56, 189, 248, 0.3);">PRO v2.0</span></h1>
+                <p>Sistem Pemantauan Suhu & Deteksi Kebakaran Berbasis IoT</p>
+            </div>
+        </div>
+
+        <!-- Menu Navigasi Rapi -->
+        <nav class="nav-menu">
+            <button class="nav-btn active" onclick="switchTab('dashboard', this)">
+                <i class="fa-solid fa-gauge-high"></i> Dashboard
+            </button>
+            <button class="nav-btn" onclick="switchTab('analytics', this)">
+                <i class="fa-solid fa-chart-line"></i> Grafik Riwayat
+            </button>
+            <button class="nav-btn" onclick="switchTab('settings', this)">
+                <i class="fa-solid fa-sliders"></i> Informasi Perangkat
+            </button>
+        </nav>
+
+        <!-- Status & Live Clock -->
+        <div class="header-actions">
+            <div class="status-badge" id="firebaseStatusBadge">
+                <div class="pulse-dot"></div>
+                <span id="firebaseStatusText">Firebase Terhubung</span>
+            </div>
+            <div class="live-clock" id="liveClock">--:--:-- WIB</div>
+            <button class="sim-btn" id="btnSimulasi" onclick="toggleSimulasi()" title="Uji coba tampilan tanpa hardware ESP32">
+                <i class="fa-solid fa-flask"></i> Simulasi Data
+            </button>
+        </div>
+    </header>
+
+    <!-- Konten Tab 1: Dashboard Utama -->
+    <main class="main-content tab-content active" id="tab-dashboard">
+        
+        <!-- Baris Metrik Utama -->
+        <div class="metrics-grid">
+            
+            <!-- Kartu 1: Suhu Saat Ini -->
+            <div class="card">
+                <div class="card-header-sm">
+                    <span class="card-title-sm">
+                        <i class="fa-solid fa-temperature-three-quarters text-primary"></i> Suhu Terkini
+                    </span>
+                    <div class="card-icon-badge" style="background: rgba(56, 189, 248, 0.1); color: #38bdf8;">
+                        <i class="fa-solid fa-microchip"></i>
+                    </div>
+                </div>
+
+                <div class="temp-display-wrap">
+                    <div class="temp-value" id="nilaiSuhu">--</div>
+                    <div class="temp-unit">&deg;C</div>
+                </div>
+
+                <div class="temp-range-bar">
+                    <div class="temp-progress" id="tempProgressBar" style="width: 0%;"></div>
+                </div>
+
+                <div class="temp-subtext">
+                    <span>Min: <b id="minSuhu" style="color: #38bdf8;">-- &deg;C</b></span>
+                    <span id="tempStatusDesc" style="color: #34d399; font-weight: 600;">Status: Standby</span>
+                    <span>Max: <b id="maxSuhu" style="color: #f87171;">-- &deg;C</b></span>
+                </div>
+            </div>
+
+            <!-- Kartu 2: Status Bahaya & Kondisi -->
+            <div class="card">
+                <div class="card-header-sm">
+                    <span class="card-title-sm">
+                        <i class="fa-solid fa-shield-halved"></i> Kondisi Ruangan
+                    </span>
+                    <div class="card-icon-badge" id="kondisiIconBadge" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">
+                        <i class="fa-solid fa-circle-check"></i>
+                    </div>
+                </div>
+
+                <div class="status-visual">
+                    <div class="condition-badge" id="badgeKondisi">
+                        <i class="fa-solid fa-circle-check" id="iconKondisi"></i>
+                        <span id="textKondisi">AMAN</span>
+                    </div>
+                </div>
+
+                <div class="level-meter">
+                    <div class="meter-dot" id="meter1" title="Level 0 - Normal"></div>
+                    <div class="meter-dot" id="meter2" title="Level 1 - Waspada"></div>
+                    <div class="meter-dot" id="meter3" title="Level 2 - Bahaya Kritis"></div>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 0.72rem; color: var(--text-dim); margin-top: 6px;">
+                    <span>Normal (&lt;35&deg;C)</span>
+                    <span>Waspada (35-50&deg;C)</span>
+                    <span>Bahaya (&gt;50&deg;C)</span>
+                </div>
+            </div>
+
+            <!-- Kartu 3: Indikator LED Fisik Hardware -->
+            <div class="card">
+                <div class="card-header-sm">
+                    <span class="card-title-sm">
+                        <i class="fa-solid fa-lightbulb"></i> Indikator LED ESP32
+                    </span>
+                    <div class="card-icon-badge" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">
+                        <i class="fa-solid fa-bolt"></i>
+                    </div>
+                </div>
+
+                <div class="led-panel">
+                    <!-- LED Hijau -->
+                    <div class="led-item">
+                        <div class="led-bulb" id="indHijau"></div>
+                        <span class="led-label">LED Hijau (Aman)</span>
+                        <span id="stateHijau" style="font-size: 0.72rem; color: var(--text-dim);">MATI</span>
+                    </div>
+
+                    <!-- Garis Pemisah -->
+                    <div style="width: 1px; height: 50px; background: var(--border-card);"></div>
+
+                    <!-- LED Merah -->
+                    <div class="led-item">
+                        <div class="led-bulb" id="indMerah"></div>
+                        <span class="led-label">LED Merah (Panas)</span>
+                        <span id="stateMerah" style="font-size: 0.72rem; color: var(--text-dim);">MATI</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Kartu 4: Kontrol Buzzer & Alarm -->
+            <div class="card">
+                <div class="card-header-sm">
+                    <span class="card-title-sm">
+                        <i class="fa-solid fa-bullhorn"></i> Kontrol Suara Buzzer
+                    </span>
+                    <div class="card-icon-badge" id="buzzerIconBg" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">
+                        <i class="fa-solid fa-volume-high" id="buzzerHeaderIcon"></i>
+                    </div>
+                </div>
+
+                <div class="buzzer-box">
+                    <div class="buzzer-status-pill">
+                        <div class="buzzer-icon-state">
+                            <i class="fa-solid fa-bell" id="buzzerStateIcon" style="color: var(--text-muted);"></i>
+                            <span id="textBuzzer">Status Buzzer: Siap</span>
+                        </div>
+                        <span id="buzzerPillBadge" style="font-size: 0.75rem; padding: 2px 8px; border-radius: 6px; background: #1e293b; color: var(--text-muted);">
+                            AUTO
+                        </span>
+                    </div>
+
+                    <button class="btn-action btn-mute-active" id="btnMute" onclick="toggleMuteBuzzer()">
+                        <i class="fa-solid fa-volume-xmark"></i>
+                        <span>MUTE BUZZER</span>
+                    </button>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Baris Kedua: Grafik Tren Realtime & Riwayat Log -->
+        <div class="charts-section">
+            
+            <!-- Area Grafik Realtime -->
+            <div class="card">
+                <div class="chart-header">
+                    <div class="card-title-sm">
+                        <i class="fa-solid fa-chart-area text-primary"></i> Grafik Pemantauan Suhu Realtime
+                    </div>
+                    <div class="chart-controls">
+                        <span style="font-size: 0.78rem; color: var(--text-dim); margin-right: 8px; display: flex; align-items: center;">
+                            <i class="fa-solid fa-circle" style="color: #38bdf8; font-size: 0.5rem; margin-right: 5px;"></i> Sensor DHT
+                        </span>
+                        <button class="btn-xs active" onclick="resetChartData()">Reset Grafik</button>
+                    </div>
+                </div>
+                <div class="chart-canvas-container">
+                    <canvas id="tempChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Area Log Event / Aktivitas -->
+            <div class="card log-box">
+                <div class="chart-header">
+                    <div class="card-title-sm">
+                        <i class="fa-solid fa-clock-rotate-left"></i> Log Aktivitas Terkini
+                    </div>
+                    <button class="btn-xs" onclick="clearLogs()" title="Bersihkan log">Hapus</button>
+                </div>
+
+                <div class="log-list" id="logList">
+                    <div class="log-item">
+                        <span class="log-text">Sistem diinisialisasi</span>
+                        <span class="log-time">00:00:00</span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- Konten Tab 2: Halaman Analisis & Grafik Penuh -->
+    <main class="main-content tab-content" id="tab-analytics">
+        <div class="card" style="margin-bottom: 24px;">
+            <div class="card-header-sm">
+                <span class="card-title-sm">
+                    <i class="fa-solid fa-chart-line"></i> Grafik Riwayat Suhu Skala Penuh
+                </span>
+                <span style="font-size: 0.8rem; color: var(--text-muted);">Menampilkan hingga 50 titik data terakhir</span>
+            </div>
+            <div style="height: 420px; position: relative;">
+                <canvas id="tempChartExpanded"></canvas>
+            </div>
+        </div>
+
+        <div class="metrics-grid">
+            <div class="card">
+                <span class="card-title-sm"><i class="fa-solid fa-arrow-trend-up"></i> Suhu Rata-rata</span>
+                <div style="font-size: 2.2rem; font-weight: 700; color: #38bdf8; margin-top: 10px;" id="avgSuhu">-- &deg;C</div>
+                <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 5px;">Dihitung dari riwayat data yang masuk</p>
+            </div>
+            <div class="card">
+                <span class="card-title-sm"><i class="fa-solid fa-triangle-exclamation"></i> Total Kejadian Panas</span>
+                <div style="font-size: 2.2rem; font-weight: 700; color: #f59e0b; margin-top: 10px;" id="countPanas">0 Kali</div>
+                <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 5px;">Frekuensi sensor mencapai level waspada/bahaya</p>
+            </div>
+            <div class="card">
+                <span class="card-title-sm"><i class="fa-solid fa-database"></i> Total Data Diterima</span>
+                <div style="font-size: 2.2rem; font-weight: 700; color: #10b981; margin-top: 10px;" id="totalDataCount">0</div>
+                <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 5px;">Paket data dari ESP32 via Firebase RTDB</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Konten Tab 3: Pengaturan & Konfigurasi -->
+    <main class="main-content tab-content" id="tab-settings">
+        <div class="device-info-grid">
+            
+            <div class="card">
+                <div class="card-header-sm">
+                    <span class="card-title-sm"><i class="fa-solid fa-network-wired"></i> Konfigurasi Firebase</span>
+                </div>
+                <div class="info-row">
+                    <span>Database URL</span>
+                    <span style="font-size: 0.75rem; max-width: 60%; word-break: break-all;">monitoring-suhu-real-tim-90141-default-rtdb.asia-southeast1.firebasedatabase.app</span>
+                </div>
+                <div class="info-row">
+                    <span>Path Sensor</span>
+                    <span>/sensor</span>
+                </div>
+                <div class="info-row">
+                    <span>Path Kontrol</span>
+                    <span>/kontrol</span>
+                </div>
+                <div class="info-row">
+                    <span>Protokol</span>
+                    <span>Websocket / RTDB</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header-sm">
+                    <span class="card-title-sm"><i class="fa-solid fa-microchip"></i> Spesifikasi Perangkat</span>
+                </div>
+                <div class="info-row">
+                    <span>Mikrokontroler</span>
+                    <span>ESP32 / ESP8266 DevKit</span>
+                </div>
+                <div class="info-row">
+                    <span>Sensor Suhu</span>
+                    <span>DHT11 / DHT22 / DS18B20</span>
+                </div>
+                <div class="info-row">
+                    <span>Output Aktuator</span>
+                    <span>Buzzer Aktif 5V & LED Indikator</span>
+                </div>
+                <div class="info-row">
+                    <span>Interval Update</span>
+                    <span>1 Detik (Realtime Stream)</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header-sm">
+                    <span class="card-title-sm"><i class="fa-solid fa-circle-info"></i> Ambang Batas Suhu</span>
+                </div>
+                <div class="info-row">
+                    <span style="color: #34d399;">Kondisi Normal (Aman)</span>
+                    <span style="color: #34d399;">&lt; 35 &deg;C</span>
+                </div>
+                <div class="info-row">
+                    <span style="color: #fbbf24;">Kondisi Waspada (Hangat)</span>
+                    <span style="color: #fbbf24;">35 &deg;C - 50 &deg;C</span>
+                </div>
+                <div class="info-row">
+                    <span style="color: #f87171;">Kondisi Bahaya (Kebakaran)</span>
+                    <span style="color: #f87171;">&gt; 50 &deg;C</span>
+                </div>
+                <div class="info-row">
+                    <span>Respon Buzzer</span>
+                    <span>Bunyi Intermiten / Kontinu</span>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+        <div>
+            &copy; 2026 <strong>IoT Temperature & Fire Monitoring System</strong> &bull; Terhubung ke Firebase RTDB
+        </div>
+        <div>
+            Status: <span style="color: #38bdf8; font-weight: 600;">ESP32 Node Ready</span>
+        </div>
+    </footer>
+
+    <!-- FIREBASE SDK v8 -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+    <script>
+        // ================= KONFIGURASI FIREBASE =================
+        const firebaseConfig = {
+            apiKey: "AIzaSyAsbqDriEzTmFRsvxOlZMreOJZdchnOGdw",
+            databaseURL: "https://monitoring-suhu-real-tim-90141-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "monitoring-suhu-real-tim-90141"
+        };
+
+        let database = null;
+        try {
+            firebase.initializeApp(firebaseConfig);
+            database = firebase.database();
+        } catch (e) {
+            console.warn("Inisialisasi Firebase:", e);
+        }
+
+        // ================= STATE GLOBAL =================
+        let isMutedCurrent = false;
+        let currentBahaya = 0;
+        let fireInterval = null;
+        let minSuhuVal = 999;
+        let maxSuhuVal = -999;
+        let totalReadings = 0;
+        let sumSuhu = 0;
+        let panasIncidentCount = 0;
+        let isSimulasiActive = false;
+        let simulasiInterval = null;
+
+        // Data Chart
+        const maxChartDataPoints = 25;
+        const chartLabels = [];
+        const chartDataPoints = [];
+
+        // ================= SETUP CHART.JS =================
+        const ctx = document.getElementById('tempChart').getContext('2d');
+        const gradientFill = ctx.createLinearGradient(0, 0, 0, 250);
+        gradientFill.addColorStop(0, 'rgba(56, 189, 248, 0.4)');
+        gradientFill.addColorStop(1, 'rgba(56, 189, 248, 0.0)');
+
+        const tempChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: chartLabels,
+                datasets: [{
+                    label: 'Suhu (°C)',
+                    data: chartDataPoints,
+                    borderColor: '#38bdf8',
+                    backgroundColor: gradientFill,
+                    borderWidth: 2.5,
+                    fill: true,
+                    tension: 0.35,
+                    pointRadius: 3,
+                    pointHoverRadius: 6,
+                    pointBackgroundColor: '#38bdf8'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: '#1e293b',
+                        titleColor: '#f8fafc',
+                        bodyColor: '#38bdf8',
+                        borderColor: 'rgba(255,255,255,0.1)',
+                        borderWidth: 1,
+                        callbacks: {
+                            label: (context) => ` Suhu: ${context.parsed.y} °C`
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { color: 'rgba(255, 255, 255, 0.04)' },
+                        ticks: { color: '#64748b', font: { family: 'JetBrains Mono', size: 10 } }
+                    },
+                    y: {
+                        grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                        ticks: { color: '#94a3b8', font: { family: 'JetBrains Mono', size: 11 }, callback: (v) => v + '°' },
+                        suggestedMin: 20,
+                        suggestedMax: 60
+                    }
+                }
+            }
+        });
+
+        // Setup Chart untuk Tab Analisis Penuh
+        const ctxExpanded = document.getElementById('tempChartExpanded').getContext('2d');
+        const tempChartExpanded = new Chart(ctxExpanded, {
+            type: 'line',
+            data: {
+                labels: chartLabels,
+                datasets: [{
+                    label: 'Suhu (°C)',
+                    data: chartDataPoints,
+                    borderColor: '#f59e0b',
+                    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.3,
+                    pointRadius: 4,
+                    pointBackgroundColor: '#f59e0b'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    x: {
+                        grid: { color: 'rgba(255, 255, 255, 0.04)' },
+                        ticks: { color: '#64748b', font: { family: 'JetBrains Mono' } }
+                    },
+                    y: {
+                        grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                        ticks: { color: '#94a3b8', font: { family: 'JetBrains Mono' } }
+                    }
+                }
+            }
+        });
+
+        // ================= JAM DIGITAL REALTIME =================
+        function updateClock() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('id-ID', { hour12: false }) + ' WIB';
+            document.getElementById('liveClock').textContent = timeString;
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // ================= SISTEM TAB NAVIGASI =================
+        function switchTab(tabName, btnElement) {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+
+            const target = document.getElementById('tab-' + tabName);
+            if (target) {
+                target.classList.add('active');
+            }
+            if (btnElement) {
+                btnElement.classList.add('active');
+            }
+
+            // Update layout Chart setelah ganti tab
+            setTimeout(() => {
+                tempChart.resize();
+                tempChartExpanded.resize();
+            }, 100);
+        }
+
+        // ================= ANIMASI API / EMOJI =================
+        function buatEmojiApi(jumlah = 5) {
+            const container = document.getElementById('fireContainer');
+            for (let i = 0; i < jumlah; i++) {
+                const fire = document.createElement('div');
+                fire.className = 'fire-emoji';
+                fire.innerHTML = '&#128293;';
+
+                const randomLeft = Math.random() * 100;
+                const randomSize = Math.random() * 40 + 20;
+                const randomDuration = Math.random() * 1.5 + 0.8;
+
+                fire.style.left = randomLeft + '%';
+                fire.style.fontSize = randomSize + 'px';
+                fire.style.animationDuration = randomDuration + 's';
+
+                container.appendChild(fire);
+                setTimeout(() => { fire.remove(); }, randomDuration * 1000);
+            }
+        }
+
+        // ================= FUNGSI LOG AKTIVITAS =================
+        function addLog(message, type = 'normal') {
+            const logList = document.getElementById('logList');
+            const item = document.createElement('div');
+            item.className = 'log-item ' + (type === 'danger' ? 'danger' : type === 'warning' ? 'warning' : '');
+
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('id-ID', { hour12: false });
+
+            item.innerHTML = `
+                <span class="log-text">${message}</span>
+                <span class="log-time">${timeStr}</span>
+            `;
+
+            logList.insertBefore(item, logList.firstChild);
+
+            // Batasi log maksimal 30 item
+            if (logList.children.length > 30) {
+                logList.removeChild(logList.lastChild);
+            }
+        }
+
+        function clearLogs() {
+            document.getElementById('logList').innerHTML = `
+                <div class="log-item">
+                    <span class="log-text">Log aktivitas dibersihkan</span>
+                    <span class="log-time">${new Date().toLocaleTimeString('id-ID', { hour12: false })}</span>
+                </div>
+            `;
+        }
+
+        function resetChartData() {
+            chartLabels.length = 0;
+            chartDataPoints.length = 0;
+            tempChart.update();
+            tempChartExpanded.update();
+            addLog("Grafik suhu direset", "normal");
+        }
+
+        // ================= PROSES UPDATE DATA SENSOR =================
+        function prosesDataSensor(data) {
+            if (!data) return;
+
+            const suhu = parseFloat(data.suhu) || 0;
+            const suhuFormatted = suhu.toFixed(1);
+
+            // Update Angka Suhu
+            const elemSuhu = document.getElementById('nilaiSuhu');
+            elemSuhu.textContent = suhuFormatted;
+
+            // Update Nilai Min & Max
+            if (suhu < minSuhuVal) minSuhuVal = suhu;
+            if (suhu > maxSuhuVal) maxSuhuVal = suhu;
+            document.getElementById('minSuhu').textContent = minSuhuVal.toFixed(1) + ' °C';
+            document.getElementById('maxSuhu').textContent = maxSuhuVal.toFixed(1) + ' °C';
+
+            // Hitung Rata-rata & Total
+            totalReadings++;
+            sumSuhu += suhu;
+            const avg = (sumSuhu / totalReadings).toFixed(1);
+            document.getElementById('avgSuhu').textContent = avg + ' °C';
+            document.getElementById('totalDataCount').textContent = totalReadings;
+
+            // Progress Bar Suhu (0-100 °C)
+            const progressPercent = Math.min(Math.max((suhu / 80) * 100, 5), 100);
+            document.getElementById('tempProgressBar').style.width = progressPercent + '%';
+
+            // Pewarnaan Suhu & Efek Visual
+            const elemStatusDesc = document.getElementById('tempStatusDesc');
+            if (suhu >= 50) {
+                elemSuhu.style.color = '#ef4444';
+                elemSuhu.style.textShadow = '0 0 25px rgba(239, 68, 68, 0.6)';
+                elemStatusDesc.textContent = 'Status: Suhu Kritis!';
+                elemStatusDesc.style.color = '#ef4444';
+            } else if (suhu >= 35) {
+                elemSuhu.style.color = '#f59e0b';
+                elemSuhu.style.textShadow = '0 0 25px rgba(245, 158, 11, 0.5)';
+                elemStatusDesc.textContent = 'Status: Suhu Waspada';
+                elemStatusDesc.style.color = '#f59e0b';
+            } else {
+                elemSuhu.style.color = '#38bdf8';
+                elemSuhu.style.textShadow = '0 0 25px rgba(56, 189, 248, 0.4)';
+                elemStatusDesc.textContent = 'Status: Normal';
+                elemStatusDesc.style.color = '#34d399';
+            }
+
+            // ================= STATUS LED INDIKATOR =================
+            const elemHijau = document.getElementById('indHijau');
+            const stateHijau = document.getElementById('stateHijau');
+            if (data.hijau) {
+                elemHijau.className = 'led-bulb led-green-on';
+                stateHijau.textContent = 'MENYALA';
+                stateHijau.style.color = '#10b981';
+            } else {
+                elemHijau.className = 'led-bulb';
+                stateHijau.textContent = 'MATI';
+                stateHijau.style.color = 'var(--text-dim)';
+            }
+
+            const elemMerah = document.getElementById('indMerah');
+            const stateMerah = document.getElementById('stateMerah');
+            if (data.merah) {
+                elemMerah.className = 'led-bulb led-red-on';
+                stateMerah.textContent = 'MENYALA';
+                stateMerah.style.color = '#ef4444';
+            } else {
+                elemMerah.className = 'led-bulb';
+                stateMerah.textContent = 'MATI';
+                stateMerah.style.color = 'var(--text-dim)';
+            }
+
+            // ================= STATUS KONDISI & BAHAYA =================
+            const badgeKondisi = document.getElementById('badgeKondisi');
+            const textKondisi = document.getElementById('textKondisi');
+            const iconKondisi = document.getElementById('iconKondisi');
+            const emergencyBanner = document.getElementById('emergencyBanner');
+
+            const m1 = document.getElementById('meter1');
+            const m2 = document.getElementById('meter2');
+            const m3 = document.getElementById('meter3');
+
+            // Reset meter
+            m1.className = 'meter-dot';
+            m2.className = 'meter-dot';
+            m3.className = 'meter-dot';
+
+            const bahayaLevel = parseInt(data.bahaya) || 0;
+
+            if (bahayaLevel === 2 || suhu >= 50) {
+                // Bahaya Kritis
+                badgeKondisi.className = 'condition-badge danger';
+                textKondisi.textContent = 'BAHAYA KEBAKARAN';
+                iconKondisi.className = 'fa-solid fa-fire';
+                emergencyBanner.style.display = 'block';
+
+                m1.className = 'meter-dot active-green';
+                m2.className = 'meter-dot active-yellow';
+                m3.className = 'meter-dot active-red';
+
+                if (currentBahaya !== 2) {
+                    panasIncidentCount++;
+                    document.getElementById('countPanas').textContent = panasIncidentCount + ' Kali';
+                    addLog(`PERINGATAN: Bahaya api/suhu kritis terdeteksi (${suhuFormatted} °C)`, 'danger');
+                    if (fireInterval) clearInterval(fireInterval);
+                    fireInterval = setInterval(() => buatEmojiApi(4), 100);
+                    currentBahaya = 2;
+                }
+            } else if (bahayaLevel === 1 || suhu >= 35) {
+                // Waspada Panas
+                badgeKondisi.className = 'condition-badge warning';
+                textKondisi.textContent = 'WASPADA PANAS';
+                iconKondisi.className = 'fa-solid fa-triangle-exclamation';
+                emergencyBanner.style.display = 'none';
+
+                m1.className = 'meter-dot active-green';
+                m2.className = 'meter-dot active-yellow';
+
+                if (currentBahaya !== 1) {
+                    panasIncidentCount++;
+                    document.getElementById('countPanas').textContent = panasIncidentCount + ' Kali';
+                    addLog(`Perhatian: Suhu ruangan meningkat (${suhuFormatted} °C)`, 'warning');
+                    if (fireInterval) clearInterval(fireInterval);
+                    fireInterval = setInterval(() => buatEmojiApi(2), 600);
+                    currentBahaya = 1;
+                }
+            } else {
+                // Normal
+                badgeKondisi.className = 'condition-badge';
+                textKondisi.textContent = 'AMAN';
+                iconKondisi.className = 'fa-solid fa-circle-check';
+                emergencyBanner.style.display = 'none';
+
+                m1.className = 'meter-dot active-green';
+
+                if (currentBahaya !== 0) {
+                    addLog(`Kondisi kembali normal (${suhuFormatted} °C)`, 'normal');
+                    if (fireInterval) clearInterval(fireInterval);
+                    fireInterval = null;
+                    currentBahaya = 0;
+                }
+            }
+
+            // Update Chart Data Realtime
+            const nowTime = new Date().toLocaleTimeString('id-ID', { hour12: false });
+            chartLabels.push(nowTime);
+            chartDataPoints.push(suhu);
+
+            if (chartLabels.length > maxChartDataPoints) {
+                chartLabels.shift();
+                chartDataPoints.shift();
+            }
+
+            // Mengubah warna chart jika suhu tinggi
+            if (suhu >= 50) {
+                tempChart.data.datasets[0].borderColor = '#ef4444';
+                tempChart.data.datasets[0].pointBackgroundColor = '#ef4444';
+            } else if (suhu >= 35) {
+                tempChart.data.datasets[0].borderColor = '#f59e0b';
+                tempChart.data.datasets[0].pointBackgroundColor = '#f59e0b';
+            } else {
+                tempChart.data.datasets[0].borderColor = '#38bdf8';
+                tempChart.data.datasets[0].pointBackgroundColor = '#38bdf8';
+            }
+
+            tempChart.update('none'); // Update tanpa lag animasi berlebih
+            tempChartExpanded.update('none');
+        }
+
+        // ================= KONTROL BUZZER (MUTE / UNMUTE) =================
+        function updateBuzzerUI(isMuted) {
+            isMutedCurrent = isMuted;
+            const btn = document.getElementById('btnMute');
+            const txtBz = document.getElementById('textBuzzer');
+            const iconBz = document.getElementById('buzzerStateIcon');
+            const pillBadge = document.getElementById('buzzerPillBadge');
+
+            if (isMuted) {
+                btn.innerHTML = `<i class="fa-solid fa-volume-high"></i> AKTIFKAN ALARM (UNMUTE)`;
+                btn.className = "btn-action btn-unmute-mode";
+                txtBz.textContent = "Buzzer: Senyap (Muted)";
+                iconBz.className = "fa-solid fa-bell-slash";
+                iconBz.style.color = "#94a3b8";
+                pillBadge.textContent = "MUTED";
+                pillBadge.style.color = "#f87171";
+            } else {
+                btn.innerHTML = `<i class="fa-solid fa-volume-xmark"></i> MUTE BUZZER`;
+                btn.className = "btn-action btn-mute-active";
+                txtBz.textContent = "Buzzer: Siaga Aktif";
+                iconBz.className = "fa-solid fa-bell";
+                iconBz.style.color = "#ef4444";
+                pillBadge.textContent = "ACTIVE";
+                pillBadge.style.color = "#34d399";
+            }
+        }
+
+        function toggleMuteBuzzer() {
+            const targetMute = !isMutedCurrent;
+
+            if (database) {
+                database.ref('/kontrol').update({
+                    is_muted: targetMute
+                }).then(() => {
+                    addLog(targetMute ? "Buzzer berhasil dibisukan (Muted)" : "Buzzer diaktifkan kembali (Unmuted)", "normal");
+                }).catch(err => {
+                    console.error("Gagal update kontrol:", err);
+                    // Fallback UI jika offline
+                    updateBuzzerUI(targetMute);
+                });
+            } else {
+                updateBuzzerUI(targetMute);
+                addLog(targetMute ? "Buzzer dibisukan (Mode Simulasi)" : "Buzzer diaktifkan (Mode Simulasi)", "normal");
+            }
+        }
+
+        function muteBuzzer() {
+            if (!isMutedCurrent) {
+                toggleMuteBuzzer();
+            }
+        }
+
+        // ================= LISTEN DATA FIREBASE =================
+        if (database) {
+            // Monitor koneksi Firebase
+            database.ref('.info/connected').on('value', (snap) => {
+                const badge = document.getElementById('firebaseStatusBadge');
+                const text = document.getElementById('firebaseStatusText');
+                if (snap.val() === true) {
+                    badge.className = 'status-badge';
+                    text.textContent = 'Firebase Terhubung';
+                } else {
+                    badge.className = 'status-badge offline';
+                    text.textContent = 'Firebase Menghubungkan...';
+                }
+            });
+
+            // Baca Data Sensor
+            database.ref('/sensor').on('value', (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    prosesDataSensor(data);
+                }
+            }, (error) => {
+                console.warn("Koneksi Firebase Sensor Error:", error);
+            });
+
+            // Baca Data Kontrol
+            database.ref('/kontrol').on('value', (snapshot) => {
+                const kontrolData = snapshot.val();
+                if (kontrolData && kontrolData.is_muted !== undefined) {
+                    updateBuzzerUI(kontrolData.is_muted);
+                }
+            });
+        }
+
+        // ================= FITUR SIMULASI UNTUK PENGUJIAN =================
+        function toggleSimulasi() {
+            isSimulasiActive = !isSimulasiActive;
+            const btnSim = document.getElementById('btnSimulasi');
+
+            if (isSimulasiActive) {
+                btnSim.style.background = '#10b981';
+                btnSim.style.color = '#fff';
+                btnSim.innerHTML = `<i class="fa-solid fa-stop"></i> Matikan Simulasi`;
+                addLog("Mode simulasi data sensor diaktifkan", "normal");
+
+                let simStep = 0;
+                simulasiInterval = setInterval(() => {
+                    simStep++;
+                    // Buat variasi suhu naik dan turun untuk pengujian
+                    let demoSuhu = 27 + Math.sin(simStep * 0.2) * 12 + (Math.random() * 2);
+                    if (simStep % 18 >= 14) {
+                        demoSuhu = 54 + Math.random() * 6; // Simulasikan bahaya kebakaran sesekali
+                    }
+
+                    const demoData = {
+                        suhu: parseFloat(demoSuhu.toFixed(1)),
+                        hijau: demoSuhu < 35,
+                        merah: demoSuhu >= 35,
+                        bahaya: demoSuhu >= 50 ? 2 : (demoSuhu >= 35 ? 1 : 0)
+                    };
+
+                    prosesDataSensor(demoData);
+                }, 1500);
+
+            } else {
+                btnSim.style.background = 'rgba(56, 189, 248, 0.12)';
+                btnSim.style.color = 'var(--primary)';
+                btnSim.innerHTML = `<i class="fa-solid fa-flask"></i> Simulasi Data`;
+                if (simulasiInterval) clearInterval(simulasiInterval);
+                addLog("Mode simulasi dihentikan", "normal");
+            }
+        }
+    </script>
+</body>
+
+</html>
+
