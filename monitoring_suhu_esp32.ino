@@ -20,12 +20,14 @@ const char* password = "kamarakmal2";
 OneWire oneWire(SENSOR_PIN);
 DallasTemperature sensors(&oneWire);
 FirebaseData fbdo;
+FirebaseData fbdoControl;
 FirebaseAuth auth;
 FirebaseConfig config;
 
 // ================= VARIABEL SISTEM =================
 float suhuRuangan = 0.0;
 bool isMuted = false;
+bool sensorTerdeteksi = true;
 
 unsigned long waktuSebelumnya = 0;
 const long intervalKedip = 500;
@@ -40,6 +42,7 @@ const long intervalKedipSuperCepat = 60; // 60ms untuk efek strobo sirine kilat
 bool statusFlipFlopSuperCepat = LOW;
 
 unsigned long waktuBacaSuhu = 0;
+unsigned long waktuCekKontrol = 0;
 unsigned long waktuSpamSerial = 0;
 const long intervalSpam = 120; // Interval spam Serial Monitor saat suhu >= 60 C (120ms)
 
@@ -69,7 +72,8 @@ void setup() {
   digitalWrite(LED_MERAH, LOW);
 
   sensors.begin();
-  sensors.setWaitForConversion(false); 
+  sensors.setResolution(10); // 10-bit: konversi sangat cepat (187ms) dan stabil
+  sensors.setWaitForConversion(true); 
   sensors.requestTemperatures(); 
   
   // Hubungkan ke WiFi
@@ -98,6 +102,7 @@ void setup() {
 
   // Alokasi buffer SSL BearSSL agar transmisi data stabil
   fbdo.setBSSLBufferSize(4096, 1024);
+  fbdoControl.setBSSLBufferSize(2048, 512);
 
   Firebase.begin(&config, &auth);
   Firebase.reconnectNetwork(true);
@@ -125,23 +130,34 @@ void loop() {
     statusFlipFlopSuperCepat = !statusFlipFlopSuperCepat; 
   }
 
-  // 2. Pembacaan Suhu & Kirim ke Firebase (Setiap 1 Detik)
-  if (waktuSekarang - waktuBacaSuhu >= 1000) {
+  // 2. Pembacaan Suhu & Kirim ke Firebase (Setiap 1.2 Detik)
+  if (waktuSekarang - waktuBacaSuhu >= 1200) {
     waktuBacaSuhu = waktuSekarang;
     
-    float tempC = sensors.getTempCByIndex(0);
-    bool sensorTerdeteksi = (tempC != DEVICE_DISCONNECTED_C && tempC > -55.0 && tempC < 125.0);
-    if (sensorTerdeteksi) {
-      suhuRuangan = tempC;
-    } else {
-      Serial.println("[SENSOR] DS18B20 tidak terdeteksi! Periksa pin data GPIO 4 & kabel resistor 4.7k.");
-    }
+    // Minta konversi suhu DS18B20 (resolusi 10-bit selesai dalam 187ms)
     sensors.requestTemperatures(); 
+    float tempC = sensors.getTempCByIndex(0);
+    
+    static int sensorGagalHitung = 0;
+    bool readingValid = (tempC != DEVICE_DISCONNECTED_C && tempC > -50.0 && tempC < 125.0 && tempC != 85.0);
+
+    if (readingValid) {
+      suhuRuangan = tempC;
+      sensorGagalHitung = 0;
+      sensorTerdeteksi = true;
+    } else {
+      sensorGagalHitung++;
+      // Toleransi 3x gagal membaca sebelum dinyatakan putus (mencegah false alarm akibat jitter 1-Wire)
+      if (sensorGagalHitung >= 3) {
+        sensorTerdeteksi = false;
+        Serial.println(F("[SENSOR] DS18B20 tidak terdeteksi! Periksa kabel & resistor pull-up 4.7k."));
+      }
+    }
     
     // Otomatis reset status mute jika suhu sudah kembali normal di bawah 50°C
     if (suhuRuangan < 50.0 && isMuted == true) {
       isMuted = false;
-      Firebase.setBool(fbdo, "/kontrol/is_muted", false);
+      Firebase.setBool(fbdoControl, "/kontrol/is_muted", false);
       Serial.println("[INFO] Suhu aman (< 50 C). Alarm buzzer disiagakan kembali.");
     }
 
@@ -173,13 +189,18 @@ void loop() {
         Serial.print("[ERROR FIREBASE] ");
         Serial.println(fbdo.errorReason());
       }
-      
-      // Baca Status Mute dari Web
-      if (Firebase.getBool(fbdo, "/kontrol/is_muted")) {
-        isMuted = fbdo.boolData();
-      }
     } else {
       Serial.println("[FIREBASE] Menghubungkan sesi...");
+    }
+  }
+
+  // 3. Cek Status Kontrol Mute dari Web secara Berkala (Setiap 2.5 Detik via fbdoControl)
+  if (waktuSekarang - waktuCekKontrol >= 2500) {
+    waktuCekKontrol = waktuSekarang;
+    if (Firebase.ready()) {
+      if (Firebase.getBool(fbdoControl, "/kontrol/is_muted")) {
+        isMuted = fbdoControl.boolData();
+      }
     }
   }
 

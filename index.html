@@ -1514,8 +1514,11 @@
         }
 
         // ================= MONITOR DETEKSI PERANGKAT =================
+        const webStartTime = Date.now();
         let lastPacketTimestamp = 0;
         let isDeviceOnline = false;
+        let offlineWarningLogged = false;
+        const DEVICE_TIMEOUT_MS = 8000; // Toleransi 8 detik agar stabil & tidak false alarm akibat jitter WiFi
 
         function updateDeviceDetectionUI(online, sensorNormal = true) {
             isDeviceOnline = online;
@@ -1592,7 +1595,7 @@
                     footerStatus.textContent = 'ESP32 Tidak Terdeteksi (Offline)';
                     footerStatus.style.color = '#ef4444';
                 }
-                // Perangkat Tidak Terdeteksi / Offline (> 4.5 detik tanpa data)
+                // Perangkat Tidak Terdeteksi / Offline (> 8 detik tanpa data baru)
                 if (badgeHeader) {
                     badgeHeader.className = 'status-badge offline';
                     textHeader.textContent = 'Perangkat Tidak Terdeteksi';
@@ -1626,16 +1629,23 @@
 
         // Timer pengecekan deteksi berkala setiap 1 detik
         setInterval(() => {
+            const now = Date.now();
             if (lastPacketTimestamp > 0) {
-                const selisihMs = Date.now() - lastPacketTimestamp;
-                if (selisihMs > 4500) {
+                const selisihMs = now - lastPacketTimestamp;
+                if (selisihMs > DEVICE_TIMEOUT_MS) {
                     if (isDeviceOnline) {
-                        addLog("Peringatan: Perangkat ESP32 tidak terdeteksi (Koneksi terputus)", "danger");
+                        if (!offlineWarningLogged) {
+                            addLog("Peringatan: Perangkat ESP32 tidak terdeteksi (Koneksi terputus)", "danger");
+                            offlineWarningLogged = true;
+                        }
                     }
                     updateDeviceDetectionUI(false, false);
                 }
             } else {
-                updateDeviceDetectionUI(false, false);
+                // Saat web baru dibuka, beri jeda waktu 8 detik sebelum menyatakan offline
+                if (now - webStartTime > DEVICE_TIMEOUT_MS) {
+                    updateDeviceDetectionUI(false, false);
+                }
             }
         }, 1000);
 
@@ -1643,10 +1653,15 @@
         function prosesDataSensor(data) {
             if (!data) return;
 
-            // Update status deteksi perangkat
+            // Update status deteksi perangkat (Stabil dengan recovery alert)
+            if (!isDeviceOnline && lastPacketTimestamp > 0 && offlineWarningLogged) {
+                addLog("Perangkat ESP32 kembali terdeteksi online", "normal");
+            }
             lastPacketTimestamp = Date.now();
+            offlineWarningLogged = false;
+
             const suhu = parseFloat(data.suhu) || 0;
-            const isSensorNormal = (data.terdeteksi !== false) && (suhu > -50);
+            const isSensorNormal = (data.terdeteksi !== false) && (suhu > -50.0);
             updateDeviceDetectionUI(true, isSensorNormal);
 
             // Catat ke riwayat untuk ekspor Excel
