@@ -736,6 +736,10 @@
             display: block;
         }
 
+        #tab-settings, #cardSpesifikasiPerangkat {
+            scroll-margin-top: 140px;
+        }
+
         /* Info Section (Tab Pengaturan/Info) */
         .device-info-grid {
             display: grid;
@@ -1074,28 +1078,6 @@
                 </div>
             </div>
 
-            <div class="card" id="cardSpesifikasiPerangkat">
-                <div class="card-header-sm">
-                    <span class="card-title-sm"><i class="fa-solid fa-microchip"></i> Spesifikasi Perangkat</span>
-                </div>
-                <div class="info-row">
-                    <span>Mikrokontroler</span>
-                    <span>ESP32 / ESP8266 DevKit</span>
-                </div>
-                <div class="info-row">
-                    <span>Sensor Suhu</span>
-                    <span>DHT11 / DHT22 / DS18B20</span>
-                </div>
-                <div class="info-row">
-                    <span>Output Aktuator</span>
-                    <span>Buzzer Aktif 5V & LED Indikator</span>
-                </div>
-                <div class="info-row">
-                    <span>Interval Update</span>
-                    <span>1 Detik (Realtime Stream)</span>
-                </div>
-            </div>
-
             <div class="card">
                 <div class="card-header-sm">
                     <span class="card-title-sm"><i class="fa-solid fa-circle-info"></i> Ambang Batas Suhu</span>
@@ -1115,6 +1097,28 @@
                 <div class="info-row">
                     <span>Respon Buzzer</span>
                     <span>Bunyi Intermiten / Kontinu</span>
+                </div>
+            </div>
+
+            <div class="card" id="cardSpesifikasiPerangkat">
+                <div class="card-header-sm">
+                    <span class="card-title-sm"><i class="fa-solid fa-microchip"></i> Spesifikasi Perangkat</span>
+                </div>
+                <div class="info-row">
+                    <span>Mikrokontroler</span>
+                    <span>ESP32 / ESP8266 DevKit</span>
+                </div>
+                <div class="info-row">
+                    <span>Sensor Suhu</span>
+                    <span>DHT11 / DHT22 / DS18B20</span>
+                </div>
+                <div class="info-row">
+                    <span>Output Aktuator</span>
+                    <span>Buzzer Aktif 5V & LED Indikator</span>
+                </div>
+                <div class="info-row">
+                    <span>Interval Update</span>
+                    <span>1 Detik (Realtime Stream)</span>
                 </div>
             </div>
 
@@ -1321,31 +1325,40 @@
         updateClock();
 
         // ================= SISTEM NAVIGASI & AUTO SCROLL =================
+        let isAutoScrolling = false;
+        let autoScrollTimer = null;
+
         function switchTab(tabName, btnElement) {
             document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
             if (btnElement) {
                 btnElement.classList.add('active');
             }
 
+            // Kunci status aktif tombol agar tidak langsung tertimpa oleh event listener scroll
+            isAutoScrolling = true;
+            if (autoScrollTimer) clearTimeout(autoScrollTimer);
+            autoScrollTimer = setTimeout(() => {
+                isAutoScrolling = false;
+            }, 1200);
+
             if (tabName === 'settings' || tabName === 'spesifikasi') {
                 const target = document.getElementById('cardSpesifikasiPerangkat') || document.getElementById('tab-settings');
                 if (target) {
-                    const headerHeight = document.querySelector('header.app-header')?.offsetHeight || 130;
-                    const targetPosition = target.getBoundingClientRect().top + window.pageYOffset - headerHeight - 16;
-
-                    window.scrollTo({
-                        top: targetPosition,
-                        behavior: 'smooth'
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
                     });
 
                     // Efek visual highlight halus pada kartu spesifikasi perangkat
-                    target.style.transition = 'box-shadow 0.4s ease, border-color 0.4s ease';
-                    target.style.boxShadow = '0 0 30px rgba(56, 189, 248, 0.45)';
-                    target.style.borderColor = 'rgba(56, 189, 248, 0.7)';
+                    target.style.transition = 'box-shadow 0.4s ease, border-color 0.4s ease, transform 0.4s ease';
+                    target.style.boxShadow = '0 0 35px rgba(56, 189, 248, 0.55)';
+                    target.style.borderColor = 'rgba(56, 189, 248, 0.8)';
+                    target.style.transform = 'scale(1.01)';
                     setTimeout(() => {
                         target.style.boxShadow = '';
                         target.style.borderColor = '';
-                    }, 2200);
+                        target.style.transform = '';
+                    }, 2400);
                 }
             } else {
                 window.scrollTo({
@@ -1355,15 +1368,18 @@
             }
         }
 
-        // Auto highlight tombol menu navbar saat pengguna menggulir halaman (scroll)
+        // Auto highlight tombol menu navbar saat pengguna menggulir halaman secara manual
         window.addEventListener('scroll', () => {
+            if (isAutoScrolling) return;
+
             const settingsSection = document.getElementById('tab-settings');
             const btnDash = document.getElementById('btnNavDashboard');
             const btnSet = document.getElementById('btnNavSettings');
             if (!settingsSection || !btnDash || !btnSet) return;
 
             const rect = settingsSection.getBoundingClientRect();
-            if (rect.top <= 250) {
+            // Jika kartu info & spesifikasi perangkat sudah masuk ke setengah layar
+            if (rect.top <= window.innerHeight * 0.45) {
                 btnSet.classList.add('active');
                 btnDash.classList.remove('active');
             } else {

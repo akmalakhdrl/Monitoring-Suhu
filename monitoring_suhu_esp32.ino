@@ -144,18 +144,27 @@ void loop() {
       Serial.println("[INFO] Suhu aman (< 50 C). Alarm buzzer disiagakan kembali.");
     }
 
+    // Hitung status kondisi bahaya sebelum dikirim ke Firebase
+    if (suhuRuangan >= 60.0) {
+      statusBahaya = 2;
+    } else if (suhuRuangan >= 50.0) {
+      statusBahaya = 1;
+    } else {
+      statusBahaya = 0;
+    }
+
     // Kirim Data ke Firebase
     if (Firebase.ready()) {
       FirebaseJson json;
       json.set("suhu", suhuRuangan);
       json.set("bahaya", statusBahaya);
-      json.set("hijau", stateHijau ? true : false);
-      json.set("merah", stateMerah ? true : false);
+      json.set("hijau", suhuRuangan < 35.0);
+      json.set("merah", suhuRuangan >= 35.0);
       
       if (Firebase.setJSON(fbdo, "/sensor", json)) {
         if (suhuRuangan < 60.0) {
           Serial.printf("[SUKSES] Suhu: %.1f C | Bahaya: %d | LED Hijau: %d | LED Merah: %d\n", 
-                        suhuRuangan, statusBahaya, stateHijau, stateMerah);
+                        suhuRuangan, statusBahaya, suhuRuangan < 35.0, suhuRuangan >= 35.0);
         }
       } else {
         Serial.print("[ERROR FIREBASE] ");
