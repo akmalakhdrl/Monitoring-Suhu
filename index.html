@@ -1394,12 +1394,15 @@
 
             const bahayaLevel = parseInt(data.bahaya) || 0;
 
-            if (bahayaLevel === 2 || suhu >= 50) {
-                // Bahaya Kritis
+            if (bahayaLevel === 2 || suhu >= 60) {
+                // Bahaya Kritis (> 60 C) - SPAM API & ALARM PENUH
                 badgeKondisi.className = 'condition-badge danger';
-                textKondisi.textContent = 'BAHAYA KEBAKARAN';
-                iconKondisi.className = 'fa-solid fa-fire';
+                textKondisi.textContent = 'BAHAYA KRITIS (>60°C)';
+                iconKondisi.className = 'fa-solid fa-fire-flame-curved fa-beat';
                 emergencyBanner.style.display = 'block';
+                emergencyBanner.innerHTML = `<i class="fa-solid fa-triangle-exclamation fa-beat"></i>
+                    <span>🚨 EVAKUASI SEGERA! SUHU KRITIS > 60°C TERDETEKSI! ALARM MAKSIMAL AKTIF! 🚨</span>
+                    <button onclick="muteBuzzer()" style="margin-left: 15px; padding: 4px 12px; background: #fff; color: #b91c1c; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">MUTE BUZZER</button>`;
 
                 m1.className = 'meter-dot active-green';
                 m2.className = 'meter-dot active-yellow';
@@ -1408,13 +1411,36 @@
                 if (currentBahaya !== 2) {
                     panasIncidentCount++;
                     document.getElementById('countPanas').textContent = panasIncidentCount + ' Kali';
-                    addLog(`PERINGATAN: Bahaya api/suhu kritis terdeteksi (${suhuFormatted} °C)`, 'danger');
+                    addLog(`🚨 BAHAYA MAKSIMAL: Suhu > 60°C terdeteksi (${suhuFormatted} °C)! Alarm darurat aktif penuh!`, 'danger');
                     if (fireInterval) clearInterval(fireInterval);
-                    fireInterval = setInterval(() => buatEmojiApi(4), 100);
+                    // NGESPAMM API PENUH: 8 partikel api setiap 60ms
+                    fireInterval = setInterval(() => buatEmojiApi(8), 60);
                     currentBahaya = 2;
                 }
-            } else if (bahayaLevel === 1 || suhu >= 35) {
-                // Waspada Panas
+            } else if (bahayaLevel === 1 || suhu >= 50) {
+                // Bahaya Api (50 - 59 C)
+                badgeKondisi.className = 'condition-badge danger';
+                textKondisi.textContent = 'BAHAYA KEBAKARAN';
+                iconKondisi.className = 'fa-solid fa-fire';
+                emergencyBanner.style.display = 'block';
+                emergencyBanner.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i>
+                    <span>PERINGATAN: TEMPERATUR TINGGI TERDETEKSI! SISTEM ALARM AKTIF!</span>
+                    <button onclick="muteBuzzer()" style="margin-left: 15px; padding: 4px 12px; background: #fff; color: #b91c1c; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">MUTE BUZZER</button>`;
+
+                m1.className = 'meter-dot active-green';
+                m2.className = 'meter-dot active-yellow';
+                m3.className = 'meter-dot active-red';
+
+                if (currentBahaya !== 1) {
+                    panasIncidentCount++;
+                    document.getElementById('countPanas').textContent = panasIncidentCount + ' Kali';
+                    addLog(`PERINGATAN: Suhu bahaya terdeteksi (${suhuFormatted} °C)`, 'danger');
+                    if (fireInterval) clearInterval(fireInterval);
+                    fireInterval = setInterval(() => buatEmojiApi(4), 150);
+                    currentBahaya = 1;
+                }
+            } else if (suhu >= 35) {
+                // Waspada Hangat (35 - 49 C)
                 badgeKondisi.className = 'condition-badge warning';
                 textKondisi.textContent = 'WASPADA PANAS';
                 iconKondisi.className = 'fa-solid fa-triangle-exclamation';
@@ -1423,16 +1449,14 @@
                 m1.className = 'meter-dot active-green';
                 m2.className = 'meter-dot active-yellow';
 
-                if (currentBahaya !== 1) {
-                    panasIncidentCount++;
-                    document.getElementById('countPanas').textContent = panasIncidentCount + ' Kali';
-                    addLog(`Perhatian: Suhu ruangan meningkat (${suhuFormatted} °C)`, 'warning');
+                if (currentBahaya !== 0.5) {
+                    addLog(`Perhatian: Suhu ruangan hangat (${suhuFormatted} °C)`, 'warning');
                     if (fireInterval) clearInterval(fireInterval);
                     fireInterval = setInterval(() => buatEmojiApi(2), 600);
-                    currentBahaya = 1;
+                    currentBahaya = 0.5;
                 }
             } else {
-                // Normal
+                // Normal (< 35 C)
                 badgeKondisi.className = 'condition-badge';
                 textKondisi.textContent = 'AMAN';
                 iconKondisi.className = 'fa-solid fa-circle-check';
@@ -1576,15 +1600,17 @@
                     simStep++;
                     // Buat variasi suhu naik dan turun untuk pengujian
                     let demoSuhu = 27 + Math.sin(simStep * 0.2) * 12 + (Math.random() * 2);
-                    if (simStep % 18 >= 14) {
-                        demoSuhu = 54 + Math.random() * 6; // Simulasikan bahaya kebakaran sesekali
+                    if (simStep % 18 >= 13) {
+                        demoSuhu = 62 + Math.random() * 5; // Simulasikan bahaya kebakaran kritis > 60 C
+                    } else if (simStep % 18 >= 10) {
+                        demoSuhu = 51 + Math.random() * 5; // Simulasikan bahaya 50-59 C
                     }
 
                     const demoData = {
                         suhu: parseFloat(demoSuhu.toFixed(1)),
                         hijau: demoSuhu < 35,
                         merah: demoSuhu >= 35,
-                        bahaya: demoSuhu >= 50 ? 2 : (demoSuhu >= 35 ? 1 : 0)
+                        bahaya: demoSuhu >= 60 ? 2 : (demoSuhu >= 50 ? 1 : 0)
                     };
 
                     prosesDataSensor(demoData);

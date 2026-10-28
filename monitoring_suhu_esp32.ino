@@ -35,7 +35,13 @@ unsigned long waktuSebelumnyaCepat = 0;
 const long intervalKedipCepat = 150;
 bool statusFlipFlopCepat = LOW;
 
+unsigned long waktuSebelumnyaSuperCepat = 0;
+const long intervalKedipSuperCepat = 60; // 60ms untuk efek strobo sirine kilat
+bool statusFlipFlopSuperCepat = LOW;
+
 unsigned long waktuBacaSuhu = 0;
+unsigned long waktuSpamSerial = 0;
+const long intervalSpam = 120; // Interval spam Serial Monitor saat suhu >= 60 C (120ms)
 
 bool stateHijau = LOW;
 bool stateMerah = LOW;
@@ -87,7 +93,7 @@ void setup() {
   config.database_url = FIREBASE_HOST;
   config.api_key = FIREBASE_AUTH;
 
-  // Gunakan Mode Test (Bypass otentikasi login anonim yang sering menyebabkan 'Bad request')
+  // Gunakan Mode Test (Bypass otentikasi login anonim yang menyebabkan 'Bad request')
   config.signer.test_mode = true;
 
   // Alokasi buffer SSL BearSSL agar transmisi data stabil
@@ -112,6 +118,11 @@ void loop() {
   if (waktuSekarang - waktuSebelumnyaCepat >= intervalKedipCepat) {
     waktuSebelumnyaCepat = waktuSekarang;
     statusFlipFlopCepat = !statusFlipFlopCepat; 
+  }
+
+  if (waktuSekarang - waktuSebelumnyaSuperCepat >= intervalKedipSuperCepat) {
+    waktuSebelumnyaSuperCepat = waktuSekarang;
+    statusFlipFlopSuperCepat = !statusFlipFlopSuperCepat; 
   }
 
   // 2. Pembacaan Suhu & Kirim ke Firebase (Setiap 1 Detik)
@@ -142,8 +153,10 @@ void loop() {
       json.set("merah", stateMerah ? true : false);
       
       if (Firebase.setJSON(fbdo, "/sensor", json)) {
-        Serial.printf("[SUKSES] Suhu: %.1f C | Bahaya: %d | LED Hijau: %d | LED Merah: %d\n", 
-                      suhuRuangan, statusBahaya, stateHijau, stateMerah);
+        if (suhuRuangan < 60.0) {
+          Serial.printf("[SUKSES] Suhu: %.1f C | Bahaya: %d | LED Hijau: %d | LED Merah: %d\n", 
+                        suhuRuangan, statusBahaya, stateHijau, stateMerah);
+        }
       } else {
         Serial.print("[ERROR FIREBASE] ");
         Serial.println(fbdo.errorReason());
@@ -165,10 +178,21 @@ void loop() {
   statusBahaya = 0; 
 
   if (suhuRuangan >= 60.0) {
-    // Bahaya Kebakaran Kritis (>= 60 C)
-    stateMerah = HIGH;
-    targetBuzzer = statusFlipFlopCepat;
+    // ================= BAHAYA KRITIS (>= 60°C) - MODE SPAM PENUH =================
+    stateMerah = HIGH;                      // Lampu Merah menyala terang penuh
+    targetBuzzer = statusFlipFlopSuperCepat; // Buzzer menjerit strobo super cepat (60ms)
     statusBahaya = 2; 
+
+    // Spam Peringatan Bahaya Penuh di Serial Monitor terus menerus setiap 120ms
+    if (waktuSekarang - waktuSpamSerial >= intervalSpam) {
+      waktuSpamSerial = waktuSekarang;
+      Serial.println(F("🚨🚨🚨 [PERINGATAN BAHAYA: SUHU > 60°C TERDETEKSI!] 🚨🚨🚨"));
+      Serial.print(F("🔥 [KRITIS] SUHU SAAT INI: "));
+      Serial.print(suhuRuangan, 1);
+      Serial.println(F(" °C - KEBAKARAN KRITIS SEDANG BERLANGSUNG!"));
+      Serial.println(F("⚡ [AKSI] BUZZER MENJERIT PENUH & LED MERAH MAKSIMAL!"));
+      Serial.println(F("=========================================================="));
+    }
   }
   else if (suhuRuangan >= 50.0) {
     // Waspada Bahaya (50 - 59 C)
