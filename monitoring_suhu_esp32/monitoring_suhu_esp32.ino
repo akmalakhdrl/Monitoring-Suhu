@@ -179,6 +179,11 @@ void loop() {
       json.set("merah", suhuRuangan >= 35.0);
       json.set("terdeteksi", sensorTerdeteksi);
       json.set("uptime", (int)(millis() / 1000));
+      json.set("heartbeat", (int)(millis() / 1000));
+
+      FirebaseJson ts;
+      ts.set(".sv", "timestamp");
+      json.set("ts", ts);
       
       if (Firebase.setJSON(fbdo, "/sensor", json)) {
         if (suhuRuangan < 60.0) {

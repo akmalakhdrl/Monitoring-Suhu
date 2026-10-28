@@ -899,7 +899,7 @@
                 </div>
                 <div class="status-badge" id="deviceStatusBadge" title="Status koneksi mikrokontroler ESP32">
                     <div class="pulse-dot" id="devicePulseDot"></div>
-                    <span id="deviceStatusText">Perangkat Terdeteksi</span>
+                    <span id="deviceStatusText">Perangkat Terkoneksi</span>
                 </div>
                 <div class="live-clock" id="liveClock">
                     <i class="fa-regular fa-clock" style="color: #38bdf8; margin-right: 6px;"></i>--:--:-- WIB
@@ -937,9 +937,9 @@
                     <span class="card-title-sm">
                         <i class="fa-solid fa-temperature-three-quarters text-primary"></i> Suhu Terkini
                     </span>
-                    <div id="deviceBadgeCard" class="device-pill-status online" title="Status koneksi sensor ke sistem">
+                    <div id="deviceBadgeCard" class="device-pill-status online" title="Status koneksi mikrokontroler ke sistem">
                         <span class="device-dot"></span>
-                        <span id="deviceTextCard">Terdeteksi</span>
+                        <span id="deviceTextCard">Terkoneksi</span>
                     </div>
                 </div>
 
@@ -1155,20 +1155,20 @@
                     <span class="card-title-sm"><i class="fa-solid fa-microchip"></i> Spesifikasi Perangkat</span>
                     <span class="device-pill-status online" id="specStatusPill">
                         <span class="device-dot"></span>
-                        <span id="specStatusPillText">Online</span>
+                        <span id="specStatusPillText">Terkoneksi</span>
                     </span>
                 </div>
                 <div class="info-row">
                     <span>Status Perangkat (ESP32)</span>
-                    <span id="specStatusPerangkat" style="color: #10b981; font-weight: 700;">TERDETEKSI (ONLINE)</span>
+                    <span id="specStatusPerangkat" style="color: #10b981; font-weight: 700;">TERKONEKSI (ONLINE)</span>
                 </div>
                 <div class="info-row">
                     <span>Status Sensor DS18B20</span>
-                    <span id="specStatusSensor" style="color: #10b981; font-weight: 700;">TERDETEKSI (NORMAL)</span>
+                    <span id="specStatusSensor" style="color: #10b981; font-weight: 700;">TERKONEKSI (NORMAL)</span>
                 </div>
                 <div class="info-row">
                     <span>Status Pemantauan</span>
-                    <span id="specLastSeen" style="color: #38bdf8;">Terpantau Aktif</span>
+                    <span id="specLastSeen" style="color: #38bdf8;">Aktif (Realtime Streaming)</span>
                 </div>
                 <div class="info-row">
                     <span>Mikrokontroler</span>
@@ -1197,7 +1197,7 @@
             &copy; 2026 <strong>IoT Temperature & Fire Monitoring System</strong> &bull; Terhubung ke Firebase RTDB
         </div>
         <div>
-            Status Perangkat: <span id="footerNodeStatus" style="color: #10b981; font-weight: 600;">ESP32 Node Terdeteksi</span>
+            Status Perangkat: <span id="footerNodeStatus" style="color: #10b981; font-weight: 600;">ESP32 Terkoneksi</span>
         </div>
     </footer>
 
@@ -1513,12 +1513,13 @@
             addLog("Grafik suhu direset", "normal");
         }
 
-        // ================= MONITOR DETEKSI PERANGKAT =================
+        // ================= MONITOR KONEKSI & HEARTBEAT PERANGKAT =================
         const webStartTime = Date.now();
         let lastPacketTimestamp = 0;
         let isDeviceOnline = false;
         let offlineWarningLogged = false;
-        const DEVICE_TIMEOUT_MS = 8000; // Toleransi 8 detik agar stabil & tidak false alarm akibat jitter WiFi
+        let isFirstDataPacket = true;
+        const DEVICE_TIMEOUT_MS = 8000; // Toleransi 8 detik tanpa kiriman data baru dari ESP32
 
         function updateDeviceDetectionUI(online, sensorNormal = true) {
             isDeviceOnline = online;
@@ -1538,21 +1539,21 @@
 
             if (online) {
                 if (footerStatus) {
-                    footerStatus.textContent = sensorNormal ? 'ESP32 Terdeteksi (Normal)' : 'ESP32 Terdeteksi (Sensor Lepas)';
+                    footerStatus.textContent = sensorNormal ? 'ESP32 Terkoneksi (Normal)' : 'ESP32 Terkoneksi (Sensor Lepas)';
                     footerStatus.style.color = sensorNormal ? '#10b981' : '#f59e0b';
                 }
                 if (!sensorNormal) {
-                    // ESP32 Terhubung tapi Sensor Suhu Lepas / Eror
+                    // ESP32 Terkoneksi tapi Sensor DS18B20 Terlepas
                     if (badgeHeader) {
                         badgeHeader.className = 'status-badge warning';
-                        textHeader.textContent = 'Sensor Tidak Terdeteksi';
+                        textHeader.textContent = 'Sensor Lepas';
                     }
                     if (badgeCard) {
                         badgeCard.className = 'device-pill-status warning';
                         textCard.textContent = 'Sensor Lepas';
                     }
                     if (specPerangkat) {
-                        specPerangkat.textContent = 'TERDETEKSI (ONLINE)';
+                        specPerangkat.textContent = 'TERKONEKSI (ONLINE)';
                         specPerangkat.style.color = '#10b981';
                     }
                     if (specSensor) {
@@ -1561,29 +1562,29 @@
                     }
                     if (specPill) {
                         specPill.className = 'device-pill-status warning';
-                        specPillText.textContent = 'Sensor Error';
+                        specPillText.textContent = 'Sensor Lepas';
                     }
                 } else {
-                    // Terdeteksi Penuh & Normal
+                    // Terkoneksi Penuh & Normal
                     if (badgeHeader) {
                         badgeHeader.className = 'status-badge';
-                        textHeader.textContent = 'Perangkat Terdeteksi';
+                        textHeader.textContent = 'Perangkat Terkoneksi';
                     }
                     if (badgeCard) {
                         badgeCard.className = 'device-pill-status online';
-                        textCard.textContent = 'Terdeteksi';
+                        textCard.textContent = 'Terkoneksi';
                     }
                     if (specPerangkat) {
-                        specPerangkat.textContent = 'TERDETEKSI (ONLINE)';
+                        specPerangkat.textContent = 'TERKONEKSI (ONLINE)';
                         specPerangkat.style.color = '#10b981';
                     }
                     if (specSensor) {
-                        specSensor.textContent = 'TERDETEKSI (NORMAL)';
+                        specSensor.textContent = 'TERKONEKSI (NORMAL)';
                         specSensor.style.color = '#10b981';
                     }
                     if (specPill) {
                         specPill.className = 'device-pill-status online';
-                        specPillText.textContent = 'Online';
+                        specPillText.textContent = 'Terkoneksi';
                     }
                 }
                 if (specLastSeen) {
@@ -1591,53 +1592,111 @@
                     specLastSeen.style.color = '#10b981';
                 }
             } else {
+                // Perangkat Tidak Aktif / Tidak Terkoneksi (> 8 detik tanpa transmisi data)
                 if (footerStatus) {
-                    footerStatus.textContent = 'ESP32 Tidak Terdeteksi (Offline)';
+                    footerStatus.textContent = 'ESP32 Tidak Terkoneksi';
                     footerStatus.style.color = '#ef4444';
                 }
-                // Perangkat Tidak Terdeteksi / Offline (> 8 detik tanpa data baru)
                 if (badgeHeader) {
                     badgeHeader.className = 'status-badge offline';
-                    textHeader.textContent = 'Perangkat Tidak Terdeteksi';
+                    textHeader.textContent = 'Tidak Terkoneksi';
                 }
                 if (badgeCard) {
                     badgeCard.className = 'device-pill-status offline';
-                    textCard.textContent = 'Tidak Terdeteksi';
+                    textCard.textContent = 'Tidak Terkoneksi';
                 }
                 if (specPerangkat) {
-                    specPerangkat.textContent = 'TIDAK TERDETEKSI (OFFLINE)';
+                    specPerangkat.textContent = 'TIDAK TERKONEKSI (OFFLINE)';
                     specPerangkat.style.color = '#ef4444';
                 }
                 if (specSensor) {
-                    specSensor.textContent = 'TIDAK TERDETEKSI';
+                    specSensor.textContent = 'TIDAK TERKONEKSI';
                     specSensor.style.color = '#ef4444';
                 }
                 if (specPill) {
                     specPill.className = 'device-pill-status offline';
-                    specPillText.textContent = 'Offline';
+                    specPillText.textContent = 'Tidak Terkoneksi';
                 }
                 if (specLastSeen && lastPacketTimestamp > 0) {
                     const detikLalu = Math.round((Date.now() - lastPacketTimestamp) / 1000);
-                    specLastSeen.textContent = `${detikLalu} dtk yang lalu`;
+                    specLastSeen.textContent = `${detikLalu} dtk yang lalu (Tidak Aktif)`;
                     specLastSeen.style.color = '#f87171';
                 } else if (specLastSeen) {
-                    specLastSeen.textContent = 'Belum terhubung';
+                    specLastSeen.textContent = 'Perangkat Tidak Aktif';
                     specLastSeen.style.color = '#94a3b8';
                 }
             }
         }
 
+        // Watchdog berkala setiap 1000ms untuk memantau keaktifan perangkat ESP32
+        setInterval(() => {
+            if (lastPacketTimestamp > 0) {
+                const selisihWaktu = Date.now() - lastPacketTimestamp;
+                if (selisihWaktu > DEVICE_TIMEOUT_MS) {
+                    // Jika lebih dari 8 detik perangkat tidak mengirim data (misal dimatikan / dicabut kabel)
+                    if (isDeviceOnline) {
+                        updateDeviceDetectionUI(false);
+                        if (!offlineWarningLogged) {
+                            addLog("Perangkat ESP32 tidak aktif (Tidak Terkoneksi)", "danger");
+                            offlineWarningLogged = true;
+                        }
+                    } else {
+                        // Perbarui counter detik terakhir kali aktif
+                        const specLastSeen = document.getElementById('specLastSeen');
+                        if (specLastSeen) {
+                            const detikLalu = Math.round(selisihWaktu / 1000);
+                            specLastSeen.textContent = `${detikLalu} dtk yang lalu (Tidak Aktif)`;
+                        }
+                    }
+                }
+            } else {
+                // Jika web sudah dibuka > 5 detik dan belum pernah menerima paket apapun
+                if (Date.now() - webStartTime > 5000 && isDeviceOnline) {
+                    updateDeviceDetectionUI(false);
+                }
+            }
+        }, 1000);
+
         // ================= PROSES UPDATE DATA SENSOR =================
         function prosesDataSensor(data) {
             if (!data) return;
 
-            lastPacketTimestamp = Date.now();
-
+            const now = Date.now();
             const suhu = parseFloat(data.suhu) || 0;
             // Sensor normal jika data.terdeteksi !== false dan suhu valid > -50 C
             const isSensorNormal = (data.terdeteksi !== false) && (suhu > -50.0);
 
-            // Suhu konstan / tidak berubah tetap TERDETEKSI normal
+            // Validasi paket saat web pertama kali membaca cache Firebase
+            if (isFirstDataPacket) {
+                isFirstDataPacket = false;
+                const serverTimeNow = now + (worldTimeOffsetMs || 0);
+
+                // Jika data di Firebase memiliki timestamp dan sudah usang (> 10 detik lalu saat perangkat mati)
+                if (data.ts && (serverTimeNow - data.ts > 10000)) {
+                    lastPacketTimestamp = now - 15000; // Tandai data lawas
+                    updateDeviceDetectionUI(false);
+                    return;
+                }
+
+                // Jika firmware belum menyertakan data.ts, verifikasi paket kedua dalam 3.5 detik
+                if (!data.ts) {
+                    setTimeout(() => {
+                        if (Date.now() - lastPacketTimestamp > 3000) {
+                            updateDeviceDetectionUI(false);
+                        }
+                    }, 3500);
+                }
+            }
+
+            // Pulihkan status online jika sebelumnya offline
+            if (!isDeviceOnline && lastPacketTimestamp > 0) {
+                addLog("Perangkat ESP32 berhasil terhubung kembali", "normal");
+                offlineWarningLogged = false;
+            }
+
+            lastPacketTimestamp = now;
+
+            // Selama ESP32 aktif mengirim heartbeat/suhu, perangkat berstatus TERKONEKSI (suhu konstan tetap terhubung)
             updateDeviceDetectionUI(true, isSensorNormal);
 
             // Catat ke riwayat untuk ekspor Excel
