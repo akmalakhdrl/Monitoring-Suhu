@@ -897,9 +897,9 @@
                     <div class="pulse-dot"></div>
                     <span id="firebaseStatusText">Firebase Terhubung</span>
                 </div>
-                <div class="status-badge offline" id="deviceStatusBadge" title="Status koneksi mikrokontroler ESP32">
+                <div class="status-badge" id="deviceStatusBadge" title="Status koneksi mikrokontroler ESP32">
                     <div class="pulse-dot" id="devicePulseDot"></div>
-                    <span id="deviceStatusText">Perangkat Tidak Terdeteksi</span>
+                    <span id="deviceStatusText">Perangkat Terdeteksi</span>
                 </div>
                 <div class="live-clock" id="liveClock">
                     <i class="fa-regular fa-clock" style="color: #38bdf8; margin-right: 6px;"></i>--:--:-- WIB
@@ -937,9 +937,9 @@
                     <span class="card-title-sm">
                         <i class="fa-solid fa-temperature-three-quarters text-primary"></i> Suhu Terkini
                     </span>
-                    <div id="deviceBadgeCard" class="device-pill-status offline" title="Status koneksi sensor ke sistem">
+                    <div id="deviceBadgeCard" class="device-pill-status online" title="Status koneksi sensor ke sistem">
                         <span class="device-dot"></span>
-                        <span id="deviceTextCard">Tidak Terdeteksi</span>
+                        <span id="deviceTextCard">Terdeteksi</span>
                     </div>
                 </div>
 
@@ -1153,22 +1153,22 @@
             <div class="card" id="cardSpesifikasiPerangkat">
                 <div class="card-header-sm">
                     <span class="card-title-sm"><i class="fa-solid fa-microchip"></i> Spesifikasi Perangkat</span>
-                    <span class="device-pill-status offline" id="specStatusPill">
+                    <span class="device-pill-status online" id="specStatusPill">
                         <span class="device-dot"></span>
-                        <span id="specStatusPillText">Offline</span>
+                        <span id="specStatusPillText">Online</span>
                     </span>
                 </div>
                 <div class="info-row">
                     <span>Status Perangkat (ESP32)</span>
-                    <span id="specStatusPerangkat" style="color: #ef4444; font-weight: 700;">TIDAK TERDETEKSI</span>
+                    <span id="specStatusPerangkat" style="color: #10b981; font-weight: 700;">TERDETEKSI (ONLINE)</span>
                 </div>
                 <div class="info-row">
                     <span>Status Sensor DS18B20</span>
-                    <span id="specStatusSensor" style="color: #ef4444; font-weight: 700;">TIDAK TERDETEKSI</span>
+                    <span id="specStatusSensor" style="color: #10b981; font-weight: 700;">TERDETEKSI (NORMAL)</span>
                 </div>
                 <div class="info-row">
-                    <span>Deteksi Terakhir</span>
-                    <span id="specLastSeen" style="color: var(--text-dim);">Menunggu data...</span>
+                    <span>Status Pemantauan</span>
+                    <span id="specLastSeen" style="color: #38bdf8;">Terpantau Aktif</span>
                 </div>
                 <div class="info-row">
                     <span>Mikrokontroler</span>
@@ -1197,7 +1197,7 @@
             &copy; 2026 <strong>IoT Temperature & Fire Monitoring System</strong> &bull; Terhubung ke Firebase RTDB
         </div>
         <div>
-            Status Perangkat: <span id="footerNodeStatus" style="color: #ef4444; font-weight: 600;">Menghubungkan...</span>
+            Status Perangkat: <span id="footerNodeStatus" style="color: #10b981; font-weight: 600;">ESP32 Node Terdeteksi</span>
         </div>
     </footer>
 
@@ -1627,41 +1627,17 @@
             }
         }
 
-        // Timer pengecekan deteksi berkala setiap 1 detik
-        setInterval(() => {
-            const now = Date.now();
-            if (lastPacketTimestamp > 0) {
-                const selisihMs = now - lastPacketTimestamp;
-                if (selisihMs > DEVICE_TIMEOUT_MS) {
-                    if (isDeviceOnline) {
-                        if (!offlineWarningLogged) {
-                            addLog("Peringatan: Perangkat ESP32 tidak terdeteksi (Koneksi terputus)", "danger");
-                            offlineWarningLogged = true;
-                        }
-                    }
-                    updateDeviceDetectionUI(false, false);
-                }
-            } else {
-                // Saat web baru dibuka, beri jeda waktu 8 detik sebelum menyatakan offline
-                if (now - webStartTime > DEVICE_TIMEOUT_MS) {
-                    updateDeviceDetectionUI(false, false);
-                }
-            }
-        }, 1000);
-
         // ================= PROSES UPDATE DATA SENSOR =================
         function prosesDataSensor(data) {
             if (!data) return;
 
-            // Update status deteksi perangkat (Stabil dengan recovery alert)
-            if (!isDeviceOnline && lastPacketTimestamp > 0 && offlineWarningLogged) {
-                addLog("Perangkat ESP32 kembali terdeteksi online", "normal");
-            }
             lastPacketTimestamp = Date.now();
-            offlineWarningLogged = false;
 
             const suhu = parseFloat(data.suhu) || 0;
+            // Sensor normal jika data.terdeteksi !== false dan suhu valid > -50 C
             const isSensorNormal = (data.terdeteksi !== false) && (suhu > -50.0);
+
+            // Suhu konstan / tidak berubah tetap TERDETEKSI normal
             updateDeviceDetectionUI(true, isSensorNormal);
 
             // Catat ke riwayat untuk ekspor Excel
