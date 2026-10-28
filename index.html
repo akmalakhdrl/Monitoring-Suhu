@@ -238,6 +238,51 @@
             color: #f87171;
         }
 
+        .status-badge.warning {
+            background: rgba(245, 158, 11, 0.12);
+            border-color: rgba(245, 158, 11, 0.35);
+            color: #fbbf24;
+        }
+
+        .device-pill-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+        }
+
+        .device-pill-status.online {
+            background: rgba(16, 185, 129, 0.12);
+            color: #34d399;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .device-pill-status.warning {
+            background: rgba(245, 158, 11, 0.12);
+            color: #fbbf24;
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        .device-pill-status.offline {
+            background: rgba(239, 68, 68, 0.12);
+            color: #f87171;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            animation: pulseAnim 1.5s infinite;
+        }
+
+        .device-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background-color: currentColor;
+            box-shadow: 0 0 8px currentColor;
+        }
+
         .pulse-dot {
             width: 8px;
             height: 8px;
@@ -846,11 +891,15 @@
                 </div>
             </div>
 
-            <!-- Status Firebase, Jam Dunia Realtime & Ekspor Excel -->
+            <!-- Status Firebase, Status Perangkat, Jam Dunia Realtime & Ekspor Excel -->
             <div class="header-actions">
                 <div class="status-badge" id="firebaseStatusBadge">
                     <div class="pulse-dot"></div>
                     <span id="firebaseStatusText">Firebase Terhubung</span>
+                </div>
+                <div class="status-badge offline" id="deviceStatusBadge" title="Status koneksi mikrokontroler ESP32">
+                    <div class="pulse-dot" id="devicePulseDot"></div>
+                    <span id="deviceStatusText">Perangkat Tidak Terdeteksi</span>
                 </div>
                 <div class="live-clock" id="liveClock">
                     <i class="fa-regular fa-clock" style="color: #38bdf8; margin-right: 6px;"></i>--:--:-- WIB
@@ -888,8 +937,9 @@
                     <span class="card-title-sm">
                         <i class="fa-solid fa-temperature-three-quarters text-primary"></i> Suhu Terkini
                     </span>
-                    <div class="card-icon-badge" style="background: rgba(56, 189, 248, 0.1); color: #38bdf8;">
-                        <i class="fa-solid fa-microchip"></i>
+                    <div id="deviceBadgeCard" class="device-pill-status offline" title="Status koneksi sensor ke sistem">
+                        <span class="device-dot"></span>
+                        <span id="deviceTextCard">Tidak Terdeteksi</span>
                     </div>
                 </div>
 
@@ -1103,6 +1153,22 @@
             <div class="card" id="cardSpesifikasiPerangkat">
                 <div class="card-header-sm">
                     <span class="card-title-sm"><i class="fa-solid fa-microchip"></i> Spesifikasi Perangkat</span>
+                    <span class="device-pill-status offline" id="specStatusPill">
+                        <span class="device-dot"></span>
+                        <span id="specStatusPillText">Offline</span>
+                    </span>
+                </div>
+                <div class="info-row">
+                    <span>Status Perangkat (ESP32)</span>
+                    <span id="specStatusPerangkat" style="color: #ef4444; font-weight: 700;">TIDAK TERDETEKSI</span>
+                </div>
+                <div class="info-row">
+                    <span>Status Sensor DS18B20</span>
+                    <span id="specStatusSensor" style="color: #ef4444; font-weight: 700;">TIDAK TERDETEKSI</span>
+                </div>
+                <div class="info-row">
+                    <span>Deteksi Terakhir</span>
+                    <span id="specLastSeen" style="color: var(--text-dim);">Menunggu data...</span>
                 </div>
                 <div class="info-row">
                     <span>Mikrokontroler</span>
@@ -1131,7 +1197,7 @@
             &copy; 2026 <strong>IoT Temperature & Fire Monitoring System</strong> &bull; Terhubung ke Firebase RTDB
         </div>
         <div>
-            Status: <span style="color: #38bdf8; font-weight: 600;">ESP32 Node Ready</span>
+            Status Perangkat: <span id="footerNodeStatus" style="color: #ef4444; font-weight: 600;">Menghubungkan...</span>
         </div>
     </footer>
 
@@ -1447,14 +1513,136 @@
             addLog("Grafik suhu direset", "normal");
         }
 
+        // ================= MONITOR DETEKSI PERANGKAT =================
+        let lastPacketTimestamp = 0;
+        let isDeviceOnline = false;
+
+        function updateDeviceDetectionUI(online, sensorNormal = true) {
+            isDeviceOnline = online;
+
+            const badgeHeader = document.getElementById('deviceStatusBadge');
+            const textHeader = document.getElementById('deviceStatusText');
+
+            const badgeCard = document.getElementById('deviceBadgeCard');
+            const textCard = document.getElementById('deviceTextCard');
+
+            const specPerangkat = document.getElementById('specStatusPerangkat');
+            const specSensor = document.getElementById('specStatusSensor');
+            const specPill = document.getElementById('specStatusPill');
+            const specPillText = document.getElementById('specStatusPillText');
+            const specLastSeen = document.getElementById('specLastSeen');
+
+            if (online) {
+                if (!sensorNormal) {
+                    // ESP32 Terhubung tapi Sensor Suhu Lepas / Eror
+                    if (badgeHeader) {
+                        badgeHeader.className = 'status-badge warning';
+                        textHeader.textContent = 'Sensor Tidak Terdeteksi';
+                    }
+                    if (badgeCard) {
+                        badgeCard.className = 'device-pill-status warning';
+                        textCard.textContent = 'Sensor Lepas';
+                    }
+                    if (specPerangkat) {
+                        specPerangkat.textContent = 'TERDETEKSI (ONLINE)';
+                        specPerangkat.style.color = '#10b981';
+                    }
+                    if (specSensor) {
+                        specSensor.textContent = 'TIDAK TERDETEKSI (PUTUS)';
+                        specSensor.style.color = '#f59e0b';
+                    }
+                    if (specPill) {
+                        specPill.className = 'device-pill-status warning';
+                        specPillText.textContent = 'Sensor Error';
+                    }
+                } else {
+                    // Terdeteksi Penuh & Normal
+                    if (badgeHeader) {
+                        badgeHeader.className = 'status-badge';
+                        textHeader.textContent = 'Perangkat Terdeteksi';
+                    }
+                    if (badgeCard) {
+                        badgeCard.className = 'device-pill-status online';
+                        textCard.textContent = 'Terdeteksi';
+                    }
+                    if (specPerangkat) {
+                        specPerangkat.textContent = 'TERDETEKSI (ONLINE)';
+                        specPerangkat.style.color = '#10b981';
+                    }
+                    if (specSensor) {
+                        specSensor.textContent = 'TERDETEKSI (NORMAL)';
+                        specSensor.style.color = '#10b981';
+                    }
+                    if (specPill) {
+                        specPill.className = 'device-pill-status online';
+                        specPillText.textContent = 'Online';
+                    }
+                }
+                if (specLastSeen) {
+                    specLastSeen.textContent = 'Baru saja (Realtime)';
+                    specLastSeen.style.color = '#10b981';
+                }
+            } else {
+                // Perangkat Tidak Terdeteksi / Offline (> 4.5 detik tanpa data)
+                if (badgeHeader) {
+                    badgeHeader.className = 'status-badge offline';
+                    textHeader.textContent = 'Perangkat Tidak Terdeteksi';
+                }
+                if (badgeCard) {
+                    badgeCard.className = 'device-pill-status offline';
+                    textCard.textContent = 'Tidak Terdeteksi';
+                }
+                if (specPerangkat) {
+                    specPerangkat.textContent = 'TIDAK TERDETEKSI (OFFLINE)';
+                    specPerangkat.style.color = '#ef4444';
+                }
+                if (specSensor) {
+                    specSensor.textContent = 'TIDAK TERDETEKSI';
+                    specSensor.style.color = '#ef4444';
+                }
+                if (specPill) {
+                    specPill.className = 'device-pill-status offline';
+                    specPillText.textContent = 'Offline';
+                }
+                if (specLastSeen && lastPacketTimestamp > 0) {
+                    const detikLalu = Math.round((Date.now() - lastPacketTimestamp) / 1000);
+                    specLastSeen.textContent = `${detikLalu} dtk yang lalu`;
+                    specLastSeen.style.color = '#f87171';
+                } else if (specLastSeen) {
+                    specLastSeen.textContent = 'Belum terhubung';
+                    specLastSeen.style.color = '#94a3b8';
+                }
+            }
+        }
+
+        // Timer pengecekan deteksi berkala setiap 1 detik
+        setInterval(() => {
+            if (lastPacketTimestamp > 0) {
+                const selisihMs = Date.now() - lastPacketTimestamp;
+                if (selisihMs > 4500) {
+                    if (isDeviceOnline) {
+                        addLog("Peringatan: Perangkat ESP32 tidak terdeteksi (Koneksi terputus)", "danger");
+                    }
+                    updateDeviceDetectionUI(false, false);
+                }
+            } else {
+                updateDeviceDetectionUI(false, false);
+            }
+        }, 1000);
+
         // ================= PROSES UPDATE DATA SENSOR =================
         function prosesDataSensor(data) {
             if (!data) return;
 
+            // Update status deteksi perangkat
+            lastPacketTimestamp = Date.now();
+            const suhu = parseFloat(data.suhu) || 0;
+            const isSensorNormal = (data.terdeteksi !== false) && (suhu > -50);
+            updateDeviceDetectionUI(true, isSensorNormal);
+
             // Catat ke riwayat untuk ekspor Excel
             rekamDataSuhu(data);
 
-            const suhu = parseFloat(data.suhu) || 0;
             const suhuFormatted = suhu.toFixed(1);
 
             // Update Angka Suhu
