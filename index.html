@@ -1531,8 +1531,13 @@
             const specPill = document.getElementById('specStatusPill');
             const specPillText = document.getElementById('specStatusPillText');
             const specLastSeen = document.getElementById('specLastSeen');
+            const footerStatus = document.getElementById('footerNodeStatus');
 
             if (online) {
+                if (footerStatus) {
+                    footerStatus.textContent = sensorNormal ? 'ESP32 Terdeteksi (Normal)' : 'ESP32 Terdeteksi (Sensor Lepas)';
+                    footerStatus.style.color = sensorNormal ? '#10b981' : '#f59e0b';
+                }
                 if (!sensorNormal) {
                     // ESP32 Terhubung tapi Sensor Suhu Lepas / Eror
                     if (badgeHeader) {
@@ -1583,6 +1588,10 @@
                     specLastSeen.style.color = '#10b981';
                 }
             } else {
+                if (footerStatus) {
+                    footerStatus.textContent = 'ESP32 Tidak Terdeteksi (Offline)';
+                    footerStatus.style.color = '#ef4444';
+                }
                 // Perangkat Tidak Terdeteksi / Offline (> 4.5 detik tanpa data)
                 if (badgeHeader) {
                     badgeHeader.className = 'status-badge offline';

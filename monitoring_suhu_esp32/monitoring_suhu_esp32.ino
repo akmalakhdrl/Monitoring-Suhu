@@ -130,10 +130,11 @@ void loop() {
     waktuBacaSuhu = waktuSekarang;
     
     float tempC = sensors.getTempCByIndex(0);
-    if (tempC != DEVICE_DISCONNECTED_C && tempC > -55.0 && tempC < 125.0) {
+    bool sensorTerdeteksi = (tempC != DEVICE_DISCONNECTED_C && tempC > -55.0 && tempC < 125.0);
+    if (sensorTerdeteksi) {
       suhuRuangan = tempC;
     } else {
-      Serial.println("[SENSOR] DS18B20 tidak terbaca, periksa kabel/resistor pull-up 4.7k!");
+      Serial.println("[SENSOR] DS18B20 tidak terdeteksi! Periksa pin data GPIO 4 & kabel resistor 4.7k.");
     }
     sensors.requestTemperatures(); 
     
@@ -160,11 +161,13 @@ void loop() {
       json.set("bahaya", statusBahaya);
       json.set("hijau", suhuRuangan < 35.0);
       json.set("merah", suhuRuangan >= 35.0);
+      json.set("terdeteksi", sensorTerdeteksi);
+      json.set("uptime", (int)(millis() / 1000));
       
       if (Firebase.setJSON(fbdo, "/sensor", json)) {
         if (suhuRuangan < 60.0) {
-          Serial.printf("[SUKSES] Suhu: %.1f C | Bahaya: %d | LED Hijau: %d | LED Merah: %d\n", 
-                        suhuRuangan, statusBahaya, suhuRuangan < 35.0, suhuRuangan >= 35.0);
+          Serial.printf("[SUKSES] Suhu: %.1f C | Bahaya: %d | Terdeteksi: %s\n", 
+                        suhuRuangan, statusBahaya, sensorTerdeteksi ? "YA" : "TIDAK");
         }
       } else {
         Serial.print("[ERROR FIREBASE] ");
