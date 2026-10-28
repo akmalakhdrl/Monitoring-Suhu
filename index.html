@@ -39,6 +39,10 @@
             --text-dim: #64748b;
         }
 
+        html {
+            scroll-behavior: smooth;
+        }
+
         * {
             box-sizing: border-box;
             margin: 0;
@@ -727,12 +731,8 @@
             color: var(--text-main);
         }
 
-        /* Tab Content Switching */
+        /* Content Section Layout */
         .tab-content {
-            display: none;
-        }
-
-        .tab-content.active {
             display: block;
         }
 
@@ -860,11 +860,11 @@
         <!-- Baris 2: Menu Navigasi Segmented Control Rapi -->
         <div class="nav-wrapper">
             <nav class="nav-menu">
-                <button class="nav-btn active" onclick="switchTab('dashboard', this)">
+                <button class="nav-btn active" id="btnNavDashboard" onclick="switchTab('dashboard', this)">
                     <i class="fa-solid fa-gauge-high"></i>
                     <span>Dashboard Live</span>
                 </button>
-                <button class="nav-btn" onclick="switchTab('settings', this)">
+                <button class="nav-btn" id="btnNavSettings" onclick="switchTab('settings', this)">
                     <i class="fa-solid fa-sliders"></i>
                     <span>Info Perangkat</span>
                 </button>
@@ -1042,8 +1042,14 @@
     </main>
 
 
-    <!-- Konten Tab 3: Pengaturan & Konfigurasi -->
-    <main class="main-content tab-content" id="tab-settings">
+    <!-- Konten Tab: Info & Spesifikasi Perangkat -->
+    <main class="main-content tab-content" id="tab-settings" style="padding-top: 10px; margin-top: 10px;">
+        <div style="margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
+            <div style="width: 4px; height: 24px; background: #38bdf8; border-radius: 4px;"></div>
+            <h2 style="font-size: 1.15rem; font-weight: 700; color: #f8fafc; letter-spacing: -0.01em;">
+                <i class="fa-solid fa-microchip" style="color: #38bdf8; margin-right: 6px;"></i> Informasi & Spesifikasi Perangkat
+            </h2>
+        </div>
         <div class="device-info-grid">
             
             <div class="card">
@@ -1068,7 +1074,7 @@
                 </div>
             </div>
 
-            <div class="card">
+            <div class="card" id="cardSpesifikasiPerangkat">
                 <div class="card-header-sm">
                     <span class="card-title-sm"><i class="fa-solid fa-microchip"></i> Spesifikasi Perangkat</span>
                 </div>
@@ -1314,24 +1320,57 @@
         setInterval(updateClock, 1000);
         updateClock();
 
-        // ================= SISTEM TAB NAVIGASI =================
+        // ================= SISTEM NAVIGASI & AUTO SCROLL =================
         function switchTab(tabName, btnElement) {
-            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
             document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
-
-            const target = document.getElementById('tab-' + tabName);
-            if (target) {
-                target.classList.add('active');
-            }
             if (btnElement) {
                 btnElement.classList.add('active');
             }
 
-            // Update layout Chart setelah ganti tab
-            setTimeout(() => {
-                tempChart.resize();
-            }, 100);
+            if (tabName === 'settings' || tabName === 'spesifikasi') {
+                const target = document.getElementById('cardSpesifikasiPerangkat') || document.getElementById('tab-settings');
+                if (target) {
+                    const headerHeight = document.querySelector('header.app-header')?.offsetHeight || 130;
+                    const targetPosition = target.getBoundingClientRect().top + window.pageYOffset - headerHeight - 16;
+
+                    window.scrollTo({
+                        top: targetPosition,
+                        behavior: 'smooth'
+                    });
+
+                    // Efek visual highlight halus pada kartu spesifikasi perangkat
+                    target.style.transition = 'box-shadow 0.4s ease, border-color 0.4s ease';
+                    target.style.boxShadow = '0 0 30px rgba(56, 189, 248, 0.45)';
+                    target.style.borderColor = 'rgba(56, 189, 248, 0.7)';
+                    setTimeout(() => {
+                        target.style.boxShadow = '';
+                        target.style.borderColor = '';
+                    }, 2200);
+                }
+            } else {
+                window.scrollTo({
+                    top: 0,
+                    behavior: 'smooth'
+                });
+            }
         }
+
+        // Auto highlight tombol menu navbar saat pengguna menggulir halaman (scroll)
+        window.addEventListener('scroll', () => {
+            const settingsSection = document.getElementById('tab-settings');
+            const btnDash = document.getElementById('btnNavDashboard');
+            const btnSet = document.getElementById('btnNavSettings');
+            if (!settingsSection || !btnDash || !btnSet) return;
+
+            const rect = settingsSection.getBoundingClientRect();
+            if (rect.top <= 250) {
+                btnSet.classList.add('active');
+                btnDash.classList.remove('active');
+            } else {
+                btnDash.classList.add('active');
+                btnSet.classList.remove('active');
+            }
+        }, { passive: true });
 
         // ================= ANIMASI API / EMOJI =================
         function buatEmojiApi(jumlah = 5) {
