@@ -825,9 +825,6 @@
     <div class="emergency-banner" id="emergencyBanner">
         <i class="fa-solid fa-triangle-exclamation"></i>
         <span>PERINGATAN: TEMPERATUR TINGGI TERDETEKSI! SISTEM ALARM AKTIF!</span>
-        <button onclick="muteBuzzer()" style="margin-left: 15px; padding: 4px 12px; background: #fff; color: #b91c1c; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">
-            SENYAPKAN SEKARANG
-        </button>
     </div>
 
     <!-- Header / Navbar Utama Terpadu & Rapi -->
@@ -1475,8 +1472,7 @@
                 iconKondisi.className = 'fa-solid fa-fire-flame-curved fa-beat';
                 emergencyBanner.style.display = 'block';
                 emergencyBanner.innerHTML = `<i class="fa-solid fa-triangle-exclamation fa-beat"></i>
-                    <span>🚨 EVAKUASI SEGERA! SUHU KRITIS > 60°C TERDETEKSI! ALARM MAKSIMAL AKTIF! 🚨</span>
-                    <button onclick="muteBuzzer()" style="margin-left: 15px; padding: 4px 12px; background: #fff; color: #b91c1c; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">MUTE BUZZER</button>`;
+                    <span>🚨 EVAKUASI SEGERA! SUHU KRITIS > 60°C TERDETEKSI! ALARM MAKSIMAL AKTIF! 🚨</span>`;
 
                 m1.className = 'meter-dot active-green';
                 m2.className = 'meter-dot active-yellow';
@@ -1498,8 +1494,7 @@
                 iconKondisi.className = 'fa-solid fa-fire';
                 emergencyBanner.style.display = 'block';
                 emergencyBanner.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i>
-                    <span>PERINGATAN: TEMPERATUR TINGGI TERDETEKSI! SISTEM ALARM AKTIF!</span>
-                    <button onclick="muteBuzzer()" style="margin-left: 15px; padding: 4px 12px; background: #fff; color: #b91c1c; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">MUTE BUZZER</button>`;
+                    <span>PERINGATAN: TEMPERATUR TINGGI TERDETEKSI! SISTEM ALARM AKTIF!</span>`;
 
                 m1.className = 'meter-dot active-green';
                 m2.className = 'meter-dot active-yellow';
