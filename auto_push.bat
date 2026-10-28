@@ -16,3 +16,4 @@ echo   BERHASIL! Semua perubahan telah di-push ke GitHub
 echo   https://github.com/akmalakhdrl/Monitoring-Suhu
 echo ===================================================
 timeout /t 5
+
