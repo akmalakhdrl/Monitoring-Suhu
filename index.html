@@ -95,18 +95,25 @@
 
         /* Top Navigation Header */
         header.app-header {
-            background: rgba(11, 15, 25, 0.85);
-            backdrop-filter: blur(12px);
+            background: rgba(11, 15, 25, 0.92);
+            backdrop-filter: blur(16px);
             border-bottom: 1px solid var(--border-card);
             position: sticky;
             top: 0;
             z-index: 100;
-            padding: 12px 24px;
+            padding: 14px 28px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+        }
+
+        .header-top-row {
             display: flex;
             justify-content: space-between;
             align-items: center;
             flex-wrap: wrap;
-            gap: 16px;
+            gap: 14px;
         }
 
         .brand-section {
@@ -116,16 +123,17 @@
         }
 
         .brand-logo {
-            width: 44px;
-            height: 44px;
+            width: 42px;
+            height: 42px;
             border-radius: 12px;
             background: linear-gradient(135deg, #ef4444 0%, #f97316 50%, #38bdf8 100%);
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.4rem;
+            font-size: 1.3rem;
             color: #fff;
             box-shadow: 0 0 20px rgba(239, 68, 68, 0.35);
+            flex-shrink: 0;
         }
 
         .brand-title h1 {
@@ -136,57 +144,93 @@
             display: flex;
             align-items: center;
             gap: 8px;
+            line-height: 1.2;
         }
 
         .brand-title p {
-            font-size: 0.75rem;
+            font-size: 0.74rem;
             color: var(--text-muted);
             font-weight: 500;
         }
 
-        /* Menu Navigasi */
-        nav.nav-menu {
+        /* Menu Navigasi Modern (Segmented Control) */
+        .nav-wrapper {
             display: flex;
+            justify-content: flex-start;
             align-items: center;
-            background: rgba(255, 255, 255, 0.04);
-            border: 1px solid var(--border-card);
-            border-radius: 12px;
+        }
+
+        nav.nav-menu {
+            display: inline-flex;
+            align-items: center;
+            background: rgba(15, 23, 42, 0.75);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 14px;
             padding: 4px;
-            gap: 4px;
+            gap: 6px;
+            box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35);
         }
 
         .nav-btn {
             background: transparent;
-            border: none;
+            border: 1px solid transparent;
             color: var(--text-muted);
-            padding: 8px 16px;
-            border-radius: 8px;
-            font-size: 0.85rem;
+            padding: 9px 20px;
+            border-radius: 10px;
+            font-size: 0.86rem;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.2s ease;
+            transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
             display: flex;
             align-items: center;
             gap: 8px;
+            user-select: none;
+            white-space: nowrap;
         }
 
         .nav-btn:hover {
             color: var(--text-main);
-            background: rgba(255, 255, 255, 0.06);
+            background: rgba(255, 255, 255, 0.05);
         }
 
         .nav-btn.active {
-            background: #1e293b;
-            color: var(--primary);
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+            background: linear-gradient(135deg, rgba(56, 189, 248, 0.2) 0%, rgba(14, 165, 233, 0.1) 100%);
+            color: #38bdf8;
+            border-color: rgba(56, 189, 248, 0.45);
+            box-shadow: 0 2px 12px rgba(56, 189, 248, 0.25);
+        }
+
+        .nav-btn i {
+            font-size: 0.95rem;
         }
 
         /* Header Status Tools */
         .header-actions {
             display: flex;
             align-items: center;
-            gap: 14px;
+            gap: 10px;
             flex-wrap: wrap;
+        }
+
+        .github-link-btn {
+            background: rgba(255, 255, 255, 0.05);
+            color: #f8fafc;
+            border: 1px solid var(--border-card);
+            padding: 7px 12px;
+            border-radius: 10px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .github-link-btn:hover {
+            background: rgba(255, 255, 255, 0.12);
+            border-color: rgba(255, 255, 255, 0.25);
+            transform: translateY(-1px);
         }
 
         .status-badge {
@@ -732,23 +776,42 @@
             gap: 10px;
         }
 
-        @media (max-width: 768px) {
+        @media (max-width: 850px) {
             header.app-header {
                 padding: 12px 16px;
+                gap: 12px;
+            }
+            .header-top-row {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 12px;
+            }
+            .header-actions {
+                width: 100%;
+                justify-content: space-between;
+                gap: 8px;
+            }
+            .nav-wrapper {
+                width: 100%;
+            }
+            nav.nav-menu {
+                width: 100%;
+                display: grid;
+                grid-template-columns: repeat(3, 1fr);
+                gap: 4px;
+                padding: 3px;
+            }
+            .nav-btn {
+                padding: 9px 4px;
+                font-size: 0.76rem;
+                justify-content: center;
+                gap: 5px;
             }
             main.main-content {
                 padding: 16px;
             }
             .temp-value {
                 font-size: 3rem;
-            }
-            nav.nav-menu {
-                width: 100%;
-                justify-content: space-around;
-            }
-            .nav-btn {
-                padding: 8px 10px;
-                font-size: 0.78rem;
             }
         }
     </style>
@@ -767,41 +830,52 @@
         </button>
     </div>
 
-    <!-- Header / Navbar Utama -->
+    <!-- Header / Navbar Utama Terpadu & Rapi -->
     <header class="app-header">
-        <div class="brand-section">
-            <div class="brand-logo">
-                <i class="fa-solid fa-fire-flame-curved"></i>
+        <!-- Baris 1: Brand & Status Alat -->
+        <div class="header-top-row">
+            <div class="brand-section">
+                <div class="brand-logo">
+                    <i class="fa-solid fa-fire-flame-curved"></i>
+                </div>
+                <div class="brand-title">
+                    <h1>THERMO-GUARD <span style="font-size: 0.65rem; background: rgba(56, 189, 248, 0.15); color: #38bdf8; padding: 2px 8px; border-radius: 8px; border: 1px solid rgba(56, 189, 248, 0.35); font-weight: 700;">IoT PRO v2.1</span></h1>
+                    <p>Sistem Pemantauan Suhu & Deteksi Dini Kebakaran ESP32</p>
+                </div>
             </div>
-            <div class="brand-title">
-                <h1>THERMO-GUARD <span style="font-size: 0.65rem; background: rgba(56, 189, 248, 0.15); color: #38bdf8; padding: 2px 8px; border-radius: 10px; border: 1px solid rgba(56, 189, 248, 0.3);">PRO v2.0</span></h1>
-                <p>Sistem Pemantauan Suhu & Deteksi Kebakaran Berbasis IoT</p>
+
+            <!-- Status Firebase, Jam & Tombol Cepat -->
+            <div class="header-actions">
+                <div class="status-badge" id="firebaseStatusBadge">
+                    <div class="pulse-dot"></div>
+                    <span id="firebaseStatusText">Firebase Terhubung</span>
+                </div>
+                <div class="live-clock" id="liveClock">--:--:-- WIB</div>
+                <button class="sim-btn" id="btnSimulasi" onclick="toggleSimulasi()" title="Uji coba tampilan tanpa hardware ESP32">
+                    <i class="fa-solid fa-flask"></i> Simulasi Data
+                </button>
+                <a href="https://github.com/akmalakhdrl/Monitoring-Suhu" target="_blank" class="github-link-btn" title="Buka repository GitHub">
+                    <i class="fa-brands fa-github"></i> GitHub
+                </a>
             </div>
         </div>
 
-        <!-- Menu Navigasi Rapi -->
-        <nav class="nav-menu">
-            <button class="nav-btn active" onclick="switchTab('dashboard', this)">
-                <i class="fa-solid fa-gauge-high"></i> Dashboard
-            </button>
-            <button class="nav-btn" onclick="switchTab('analytics', this)">
-                <i class="fa-solid fa-chart-line"></i> Grafik Riwayat
-            </button>
-            <button class="nav-btn" onclick="switchTab('settings', this)">
-                <i class="fa-solid fa-sliders"></i> Informasi Perangkat
-            </button>
-        </nav>
-
-        <!-- Status & Live Clock -->
-        <div class="header-actions">
-            <div class="status-badge" id="firebaseStatusBadge">
-                <div class="pulse-dot"></div>
-                <span id="firebaseStatusText">Firebase Terhubung</span>
-            </div>
-            <div class="live-clock" id="liveClock">--:--:-- WIB</div>
-            <button class="sim-btn" id="btnSimulasi" onclick="toggleSimulasi()" title="Uji coba tampilan tanpa hardware ESP32">
-                <i class="fa-solid fa-flask"></i> Simulasi Data
-            </button>
+        <!-- Baris 2: Menu Navigasi Segmented Control Rapi -->
+        <div class="nav-wrapper">
+            <nav class="nav-menu">
+                <button class="nav-btn active" onclick="switchTab('dashboard', this)">
+                    <i class="fa-solid fa-gauge-high"></i>
+                    <span>Dashboard Live</span>
+                </button>
+                <button class="nav-btn" onclick="switchTab('analytics', this)">
+                    <i class="fa-solid fa-chart-line"></i>
+                    <span>Grafik Riwayat</span>
+                </button>
+                <button class="nav-btn" onclick="switchTab('settings', this)">
+                    <i class="fa-solid fa-sliders"></i>
+                    <span>Info Perangkat</span>
+                </button>
+            </nav>
         </div>
     </header>
 
